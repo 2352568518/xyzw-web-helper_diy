@@ -3062,10 +3062,18 @@ const saveScheduledTasks = async (newTaskId = null) => {
                 scheduledTasks.value[index].id = result.data.id;
                 scheduledTasks.value[index]._synced = true;
               }
+            } else {
+              console.error('创建任务失败:', result.error);
+              throw new Error(result.error || '创建任务失败');
             }
           } else {
             // 已同步的任务，更新
-            await apiService.updateTask(task.id, task);
+            const result = await apiService.updateTask(task.id, task);
+            if (!result.success) {
+              console.error('更新任务失败:', result.error);
+              throw new Error(result.error || '更新任务失败');
+            }
+            console.log('任务更新成功:', task.id);
           }
         }
       }
@@ -3210,6 +3218,7 @@ const saveTask = async () => {
     selectedTokens: [...taskForm.selectedTokens],
     selectedTasks: [...taskForm.selectedTasks],
     enabled: taskForm.enabled,
+    _synced: editingTask.value?._synced || false, // 保留同步状态
   };
 
   let isNew = !editingTask.value;

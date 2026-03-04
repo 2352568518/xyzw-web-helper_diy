@@ -179,6 +179,15 @@ class TaskService {
         delete updateData.selectedTokens;
       }
 
+      // 处理 selectedTasks，存储到 settings 中
+      if (updateData.selectedTasks) {
+        updateData.settings = {
+          ...(updateData.settings || {}),
+          selectedTasks: updateData.selectedTasks
+        };
+        delete updateData.selectedTasks;
+      }
+
       // 处理字段名转换
       if (updateData.runType) {
         updateData.run_type = updateData.runType;
@@ -196,6 +205,9 @@ class TaskService {
         updateData.is_active = updateData.enabled;
         delete updateData.enabled;
       }
+
+      // 删除不应该存入数据库的字段
+      delete updateData._synced;
 
       logger.info(`准备更新任务: ${id}, 数据: ${JSON.stringify(updateData, null, 2)}`);
 
