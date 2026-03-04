@@ -3,9 +3,9 @@ const config = {
   // API 配置
   api: {
     // 后端 API 地址
-    backendUrl: process.env.VITE_BACKEND_URL || 'http://localhost:3001',
+    backendUrl: import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001',
     // 是否使用后端 API
-    useBackend: process.env.VITE_USE_BACKEND === 'true' || false,
+    useBackend: import.meta.env.VITE_USE_BACKEND === 'true' || false,
     // API 超时时间
     timeout: 30000
   },
