@@ -19,7 +19,10 @@ class ApiService {
 
   // 检查是否使用后端 API
   shouldUseBackend() {
-    return config.api.useBackend;
+    const useBackend = config.api.useBackend;
+    console.log('Should use backend:', useBackend);
+    console.log('Backend URL:', config.api.backendUrl);
+    return useBackend;
   }
 
   // Token 相关 API
@@ -53,16 +56,20 @@ class ApiService {
   }
 
   async createToken(tokenData) {
+    console.log('Creating token:', tokenData);
     if (!this.shouldUseBackend()) {
+      console.log('Using local token store');
       const token = this.tokenStore.addToken(tokenData);
       return { success: true, data: token };
     }
 
     try {
+      console.log('Calling backend API to create token');
       const response = await apiClient.post('/api/tokens', tokenData);
+      console.log('Backend API response:', response);
       return response.data;
     } catch (error) {
-      console.error('创建 Token 失败:', error);
+      console.error('Create token failed:', error);
       return { success: false, error: error.message };
     }
   }
