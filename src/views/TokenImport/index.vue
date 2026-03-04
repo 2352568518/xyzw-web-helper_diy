@@ -540,35 +540,32 @@
       <div v-if="isLoading" class="empty-state-container">
         <n-spin size="large" description="加载中..." />
       </div>
-      <div v-else-if="!tokenStore.hasTokens && !showImportForm" class="empty-state-container">
-        <a-empty>
-          <template #image>
-            <i class="mdi:bed-empty" style="font-size: 64px; color: var(--text-tertiary)"></i>
-          </template>
-          <template #description>
-            <div class="empty-actions">
-              <p>还没有导入任何Token</p>
-              <n-space vertical>
-                <n-button type="primary" size="large" @click="openshowImportForm">
-                  <template #icon>
-                    <n-icon>
-                      <Add />
-                    </n-icon>
-                  </template>
-                  添加Token
-                </n-button>
-                <n-button type="info" size="large" @click="importTokenFile">
-                  <template #icon>
-                    <n-icon>
-                      <CloudUpload />
-                    </n-icon>
-                  </template>
-                  导入配置文件
-                </n-button>
-              </n-space>
-            </div>
-          </template>
-        </a-empty>
+      <div v-else-if="!tokenStore.hasTokens" class="empty-state-container">
+        <div class="empty-state-content">
+          <n-icon size="64" color="var(--text-tertiary)">
+            <CloudUpload />
+          </n-icon>
+          <h3>还没有导入任何Token</h3>
+          <p>选择下方按钮开始添加或导入Token</p>
+          <n-space vertical size="large">
+            <n-button type="primary" size="large" @click="showImportForm = true">
+              <template #icon>
+                <n-icon>
+                  <Add />
+                </n-icon>
+              </template>
+              添加Token
+            </n-button>
+            <n-button type="info" size="large" @click="importTokenFile">
+              <template #icon>
+                <n-icon>
+                  <CloudUpload />
+                </n-icon>
+              </template>
+              导入配置文件
+            </n-button>
+          </n-space>
+        </div>
       </div>
     </div>
 
@@ -2486,13 +2483,19 @@ onMounted(async () => {
   padding: var(--spacing-2xl);
 }
 
-.empty-actions {
+.empty-state-content {
   text-align: center;
   
+  h3 {
+    font-size: 24px;
+    color: var(--text-primary);
+    margin: var(--spacing-lg) 0 var(--spacing-sm);
+  }
+  
   p {
-    font-size: 18px;
+    font-size: 16px;
     color: var(--text-secondary);
-    margin-bottom: var(--spacing-lg);
+    margin-bottom: var(--spacing-xl);
   }
 }
 </style>
