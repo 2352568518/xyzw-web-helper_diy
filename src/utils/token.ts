@@ -2,7 +2,22 @@ import axios from "axios";
 import { MD5, lib, enc } from "crypto-js";
 import { g_utils } from "@/utils/bonProtocol";
 
+// 生成 UUID 格式的 ID
+const generateUUID = () => {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
+
 export const getTokenId = (token: string | ArrayBuffer | Uint8Array) => {
+  // 返回 UUID 格式的 ID（兼容 Supabase UUID 类型）
+  return generateUUID();
+}
+
+// 保留原有的 MD5 哈希函数（用于其他用途）
+export const getTokenHash = (token: string | ArrayBuffer | Uint8Array) => {
   const binHash = MD5(lib.WordArray.create(token)).toString(enc.Hex)
   return binHash;
 }

@@ -109,12 +109,20 @@ class TaskService {
    */
   async createTask(taskData) {
     try {
+      // 处理 token_ids，确保是有效的 UUID 数组
+      let tokenIds = taskData.selectedTokens || taskData.token_ids || [];
+      // 过滤掉无效的 UUID
+      tokenIds = tokenIds.filter(id => {
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        return uuidRegex.test(id);
+      });
+
       // 处理前端创建的任务数据结构
       const task = {
         id: taskData.id || uuidv4(),
         name: taskData.name,
         type: 'daily', // 默认类型
-        token_ids: taskData.selectedTokens || taskData.token_ids || [],
+        token_ids: tokenIds,
         run_type: taskData.runType || taskData.run_type || 'daily',
         run_time: taskData.runTime || taskData.run_time || '00:00',
         cron_expression: taskData.cronExpression || taskData.cron_expression || '0 0 * * *',
@@ -127,6 +135,8 @@ class TaskService {
         updated_at: new Date().toISOString()
       };
 
+      logger.info(`准备创建任务: ${JSON.stringify(task, null, 2)}`);
+
       const { data, error } = await supabase
         .from('tasks')
         .insert(task)
@@ -134,7 +144,7 @@ class TaskService {
         .single();
 
       if (error) {
-        logger.error(`创建任务失败: ${error.message}`);
+        logger.error(`创建任务失败: ${JSON.stringify(error)}`);
         throw error;
       }
 
@@ -160,6 +170,35 @@ class TaskService {
         updated_at: new Date().toISOString()
       };
 
+      // 处理 token_ids，确保是有效的 UUID 数组
+      if (updateData.selectedTokens) {
+        updateData.token_ids = updateData.selectedTokens.filter(tokenId => {
+          const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+          return uuidRegex.test(tokenId);
+        });
+        delete updateData.selectedTokens;
+      }
+
+      // 处理字段名转换
+      if (updateData.runType) {
+        updateData.run_type = updateData.runType;
+        delete updateData.runType;
+      }
+      if (updateData.runTime) {
+        updateData.run_time = updateData.runTime;
+        delete updateData.runTime;
+      }
+      if (updateData.cronExpression) {
+        updateData.cron_expression = updateData.cronExpression;
+        delete updateData.cronExpression;
+      }
+      if (updateData.enabled !== undefined) {
+        updateData.is_active = updateData.enabled;
+        delete updateData.enabled;
+      }
+
+      logger.info(`准备更新任务: ${id}, 数据: ${JSON.stringify(updateData, null, 2)}`);
+
       const { data, error } = await supabase
         .from('tasks')
         .update(updateData)
@@ -168,7 +207,7 @@ class TaskService {
         .single();
 
       if (error) {
-        logger.error(`更新任务失败: ${error.message}`);
+        logger.error(`更新任务失败: ${JSON.stringify(error)}`);
         throw error;
       }
 

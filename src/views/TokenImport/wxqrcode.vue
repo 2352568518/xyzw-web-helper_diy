@@ -106,6 +106,7 @@ import useIndexedDB from "@/hooks/useIndexedDB";
 import { g_utils } from "@/utils/bonProtocol";
 import { formatPower } from "@/utils/legionWar";
 import { useTokenStore } from "@/stores/tokenStore";
+import apiService from "@/services/apiService";
 const tokenStore = useTokenStore();
 const { storeArrayBuffer } = useIndexedDB();
 
@@ -763,28 +764,71 @@ const saveAccount = async (arrBuf: ArrayBuffer, nickname = "") => {
 
 const handleImport = async () => {
   if (roleList.value.length === 0) {
-    message.error("请先上传bin文件！");
+    message.error("请先选择要添加的角色！");
     return;
   }
-  roleList.value.forEach((role) => {
-    // tokenStore.gameTokens中发现已存在的重复名称，则移出token后重新添加
-    const gameToken = tokenStore.gameTokens.find((t) => t.id === role.id);
-    if (gameToken) {
-      console.log("移除同名token:", gameToken);
-      // tokenStore.removeToken(gameToken.id);
-      tokenStore.updateToken(gameToken.id, {
-        ...role,
-      });
-    } else {
-      tokenStore.addToken({
-        ...role,
+  isImporting.value = true;
+  try {
+    for (const role of roleList.value) {
+      const tokenData = {
+        id: role.id,
+        name: role.name,
+        token: role.token,
+        server: role.server,
+        ws_url: role.wsUrl,
+        import_method: role.importMethod,
+      };
+      
+      // 检查是否已存在
+      const existingToken = tokenStore.gameTokens.find((t) => t.id === role.id);
+      if (existingToken) {
+        // 更新现有 token
+        const result = await apiService.updateToken(role.id, tokenData);
+        if (!result.success) {
+          message.error(`更新Token失败: ${result.error}`);
+          return;
+        }
+      } else {
+        // 创建新 token
+        const result = await apiService.createToken(tokenData);
+        if (!result.success) {
+          message.error(`添加Token失败: ${result.error}`);
+          return;
+        }
+      }
+    }
+    
+    // 刷新 token 列表
+    const tokensResult = await apiService.getTokens();
+    if (tokensResult.success) {
+      tokenStore.gameTokens.value = [];
+      tokensResult.data.forEach((token) => {
+        tokenStore.gameTokens.value.push({
+          id: token.id,
+          name: token.name,
+          token: token.token,
+          wsUrl: token.ws_url,
+          server: token.server,
+          remark: token.remark,
+          importMethod: token.import_method,
+          sourceUrl: token.source_url,
+          avatar: token.avatar,
+          isActive: token.is_active,
+          createdAt: token.created_at,
+          updatedAt: token.updated_at
+        });
       });
     }
-  });
-  console.log("当前Token列表:", tokenStore.gameTokens);
-  message.success("Token添加成功");
-  roleList.value = [];
-  emit("ok");
+    
+    console.log("当前Token列表:", tokenStore.gameTokens);
+    message.success("Token添加成功");
+    roleList.value = [];
+    emit("ok");
+  } catch (error: any) {
+    message.error(`添加失败: ${error.message}`);
+  } finally {
+    isImporting.value = false;
+  }
 };
 
 const downloadBinFile = (fileName, bin) => {
