@@ -60,6 +60,7 @@
 <script lang="ts" setup>
 import { ref, reactive, h } from "vue";
 import { useTokenStore } from "@/stores/tokenStore";
+import apiService from "@/services/apiService";
 import { CloudUpload } from "@vicons/ionicons5";
 
 import {
@@ -370,25 +371,32 @@ const handleImport = async () => {
     message.error("请先上传bin文件！");
     return;
   }
-  roleList.value.forEach((role) => {
-    // tokenStore.gameTokens中发现已存在的重复名称，则移出token后重新添加
-    const gameToken = tokenStore.gameTokens.find((t) => t.id === role.id);
-    if (gameToken) {
-      console.log("移除同名token:", gameToken);
-      // tokenStore.removeToken(gameToken.id);
-      tokenStore.updateToken(gameToken.id, {
-        ...role,
-      });
-    } else {
-      tokenStore.addToken({
-        ...role,
-      });
+  isImporting.value = true;
+  try {
+    for (const role of roleList.value) {
+      const tokenData = {
+        id: role.id,
+        name: role.name,
+        token: role.token,
+        server: role.server,
+        ws_url: role.wsUrl,
+      };
+      
+      const result = await apiService.createToken(tokenData);
+      if (!result.success) {
+        message.error(`添加Token失败: ${result.error}`);
+        return;
+      }
     }
-  });
-  console.log("当前Token列表:", tokenStore.gameTokens);
-  message.success("Token添加成功");
-  roleList.value = [];
-  $emit("ok");
+    console.log("Token添加成功");
+    message.success("Token添加成功");
+    roleList.value = [];
+    $emit("ok");
+  } catch (error: any) {
+    message.error(`添加失败: ${error.message}`);
+  } finally {
+    isImporting.value = false;
+  }
 };
 
 const downloadBinFile = (fileName, bin) => {

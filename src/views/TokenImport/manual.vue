@@ -88,6 +88,7 @@
 </template>
 <script lang="ts" setup>
 import { useTokenStore } from "@/stores/tokenStore";
+import apiService from "@/services/apiService";
 import { CloudUpload, AlertCircleOutline } from "@vicons/ionicons5";
 import {
   NButton,
@@ -132,23 +133,29 @@ const importRules = {
     { min: 20, message: "Token字符串长度应至少20个字符", trigger: "blur" },
   ],
 };
-const handleImport = () => {
+const handleImport = async () => {
   isImporting.value = true;
   try {
-    tokenStore.addToken({
+    const tokenData = {
       name: importForm.name,
       token: importForm.base64Token,
       server: importForm.server,
-      wsUrl: importForm.wsUrl,
-    });
-    message.success("Token添加成功");
-    importForm.name = "";
-    importForm.base64Token = "";
-    importForm.server = "";
-    importForm.wsUrl = "";
-    $emit("ok");
+      ws_url: importForm.wsUrl,
+    };
+    
+    const result = await apiService.createToken(tokenData);
+    if (result.success) {
+      message.success("Token添加成功");
+      importForm.name = "";
+      importForm.base64Token = "";
+      importForm.server = "";
+      importForm.wsUrl = "";
+      $emit("ok");
+    } else {
+      message.error(`添加失败: ${result.error}`);
+    }
   } catch (error: any) {
-    message.error(`添加Token失败: ${error.message || error}`);
+    message.error(`添加失败: ${error.message}`);
   } finally {
     isImporting.value = false;
   }
