@@ -538,15 +538,36 @@
       </div>
 
       <!-- 空状态 -->
-      <a-empty v-if="!tokenStore.hasTokens && !showImportForm">
-        <template #image>
-          <i class="mdi:bed-empty"></i>
-        </template>
-        还没有导入任何Token
-        <a-button type="link" @click="openshowImportForm"
-          >打开Token管理</a-button
-        >
-      </a-empty>
+      <div v-if="!tokenStore.hasTokens && !showImportForm" class="empty-state-container">
+        <a-empty>
+          <template #image>
+            <i class="mdi:bed-empty" style="font-size: 64px; color: var(--text-tertiary)"></i>
+          </template>
+          <template #description>
+            <div class="empty-actions">
+              <p>还没有导入任何Token</p>
+              <n-space vertical>
+                <n-button type="primary" size="large" @click="openshowImportForm">
+                  <template #icon>
+                    <n-icon>
+                      <Add />
+                    </n-icon>
+                  </template>
+                  添加Token
+                </n-button>
+                <n-button type="info" size="large" @click="importTokenFile">
+                  <template #icon>
+                    <n-icon>
+                      <CloudUpload />
+                    </n-icon>
+                  </template>
+                  导入配置文件
+                </n-button>
+              </n-space>
+            </div>
+          </template>
+        </a-empty>
+      </div>
     </div>
 
     <!-- 编辑Token模态框 -->
@@ -623,8 +644,10 @@ import {
   Star,
   SyncCircle,
   TrashBin,
+  CloudUpload,
 } from "@vicons/ionicons5";
 import { NIcon, useDialog, useMessage } from "naive-ui";
+import apiService from "@/services/apiService";
 import { h, onMounted, reactive, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { transformToken } from "@/utils/token";
@@ -1337,25 +1360,201 @@ const exportTokens = () => {
   }
 };
 
-const importTokenFile = () => {
+const importTokenFile = async () => {
   const input = document.createElement("input");
   input.type = "file";
   input.accept = ".json";
-  input.onchange = (e) => {
+  input.onchange = async (e) => {
     const file = e.target.files[0];
     if (file) {
       const reader = new FileReader();
-      reader.onload = (e) => {
+      reader.onload = async (e) => {
         try {
-          const data = JSON.parse(e.target.result);
-          const result = tokenStore.importTokens(data);
-          if (result.success) {
-            message.success(result.message);
+          const importData = JSON.parse(e.target.result);
+          
+          // 检测配置文件版本
+          const version = importData.version || '1.0';
+          console.log(`导入配置文件版本: ${version}`);
+          
+          // 检查是否使用后端API
+          const useBackend = await apiService.shouldUseBackend();
+          
+          if (useBackend) {
+            let importedTokens = 0;
+            let importedSettings = 0;
+            let importedTemplates = 0;
+            let importedTasks = 0;
+            let skippedTokens = 0;
+            let skippedTasks = 0;
+            
+            // 1. 导入 Token 列表 (兼容 gameTokens 和 tokens 字段)
+            const tokensToImport = importData.tokens || importData.gameTokens;
+            if (tokensToImport) {
+              const tokensArray = Array.isArray(tokensToImport) 
+                ? tokensToImport 
+                : Object.entries(tokensToImport).map(([id, data]) => ({ id, ...data }));
+              
+              for (const data of tokensArray) {
+                try {
+                  // 兼容多种字段名格式
+                  const tokenInfo = {
+                    id: data.id,
+                    name: data.name || data.roleName || '未命名',
+                    token: data.token,
+                    ws_url: data.wsUrl || data.ws_url || data.wsUrl || null,
+                    server: data.server || '未知',
+                    remark: data.remark || '',
+                    import_method: data.import_method || data.importMethod || 'import',
+                    source_url: data.source_url || data.sourceUrl || null,
+                    avatar: data.avatar || '',
+                    is_active: data.is_active !== false
+                  };
+                  
+                  // 跳过无效的 token
+                  if (!tokenInfo.token) {
+                    console.warn('跳过无效Token（缺少token字段）:', tokenInfo.id);
+                    skippedTokens++;
+                    continue;
+                  }
+                  
+                  // 检查是否已存在
+                  const existingToken = tokenStore.gameTokens.find(t => t.id === tokenInfo.id);
+                  if (!existingToken) {
+                    const result = await apiService.createToken(tokenInfo);
+                    if (result.success) {
+                      importedTokens++;
+                    } else {
+                      console.warn('创建Token失败:', result.error);
+                      skippedTokens++;
+                    }
+                  } else {
+                    skippedTokens++;
+                  }
+                } catch (tokenError) {
+                  console.error('导入Token失败:', tokenError);
+                  skippedTokens++;
+                }
+              }
+            }
+            
+            // 2. 导入任务模板 (可选，旧版本可能没有)
+            if (importData.taskTemplates && Array.isArray(importData.taskTemplates)) {
+              for (const template of importData.taskTemplates) {
+                try {
+                  if (template.name && template.settings) {
+                    const result = await apiService.createTaskTemplate({
+                      name: template.name,
+                      settings: template.settings
+                    });
+                    if (result.success) {
+                      importedTemplates++;
+                    }
+                  }
+                } catch (templateError) {
+                  console.warn('导入任务模板失败:', templateError);
+                }
+              }
+            }
+            
+            // 3. 导入 Token 设置 (可选，旧版本可能没有)
+            if (importData.tokenSettings && Array.isArray(importData.tokenSettings)) {
+              for (const setting of importData.tokenSettings) {
+                try {
+                  const tokenId = setting.token_id || setting.tokenId;
+                  if (tokenId && setting.settings) {
+                    const result = await apiService.saveTokenSettings(
+                      tokenId, 
+                      setting.settings, 
+                      setting.template_id || setting.templateId
+                    );
+                    if (result.success) {
+                      importedSettings++;
+                    }
+                  }
+                } catch (settingError) {
+                  console.warn('导入Token设置失败:', settingError);
+                }
+              }
+            }
+            
+            // 4. 导入定时任务 (可选，旧版本可能没有)
+            if (importData.scheduledTasks && Array.isArray(importData.scheduledTasks)) {
+              for (const task of importData.scheduledTasks) {
+                try {
+                  if (task.name) {
+                    // 兼容多种字段名格式
+                    const taskData = {
+                      id: task.id,
+                      name: task.name,
+                      type: task.type || 'daily',
+                      token_ids: task.token_ids || task.selectedTokens || [],
+                      run_type: task.run_type || task.runType || 'daily',
+                      run_time: task.run_time || task.runTime || '00:00',
+                      cron_expression: task.cron_expression || task.cronExpression || '0 0 * * *',
+                      settings: {
+                        selectedTasks: task.settings?.selectedTasks || task.selectedTasks || []
+                      },
+                      is_active: task.is_active !== false && task.enabled !== false
+                    };
+                    const result = await apiService.createTask(taskData);
+                    if (result.success) {
+                      importedTasks++;
+                    } else {
+                      console.warn('创建定时任务失败:', result.error);
+                      skippedTasks++;
+                    }
+                  }
+                } catch (taskError) {
+                  console.warn('导入定时任务失败:', taskError);
+                  skippedTasks++;
+                }
+              }
+            }
+            
+            // 刷新 token 列表
+            try {
+              const tokensResult = await apiService.getTokens();
+              if (tokensResult.success) {
+                tokenStore.gameTokens = tokensResult.data.map((token) => ({
+                  id: token.id,
+                  name: token.name,
+                  token: token.token,
+                  wsUrl: token.ws_url,
+                  server: token.server,
+                  remark: token.remark,
+                  importMethod: token.import_method,
+                  sourceUrl: token.source_url,
+                  avatar: token.avatar,
+                  isActive: token.is_active,
+                  createdAt: token.created_at,
+                  updatedAt: token.updated_at
+                }));
+              }
+            } catch (refreshError) {
+              console.error('刷新Token列表失败:', refreshError);
+            }
+            
+            // 构建结果消息
+            let resultMessage = `导入成功: ${importedTokens} 个Token`;
+            if (importedSettings > 0) resultMessage += `, ${importedSettings} 个设置`;
+            if (importedTemplates > 0) resultMessage += `, ${importedTemplates} 个模板`;
+            if (importedTasks > 0) resultMessage += `, ${importedTasks} 个定时任务`;
+            if (skippedTokens > 0 || skippedTasks > 0) {
+              resultMessage += ` (跳过 ${skippedTokens} 个Token, ${skippedTasks} 个任务)`;
+            }
+            message.success(resultMessage);
           } else {
-            message.error(result.message);
+            // 本地导入
+            const result = tokenStore.importTokens(importData);
+            if (result.success) {
+              message.success(result.message);
+            } else {
+              message.error(result.message);
+            }
           }
         } catch (error) {
-          message.error("文件格式错误");
+          console.error('导入失败:', error);
+          message.error("文件格式错误: " + error.message);
         }
       };
       reader.readAsText(file);
@@ -2264,5 +2463,23 @@ onMounted(async () => {
 
 [data-theme="dark"] .token-card {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.empty-state-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+  padding: var(--spacing-2xl);
+}
+
+.empty-actions {
+  text-align: center;
+  
+  p {
+    font-size: 18px;
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-lg);
+  }
 }
 </style>
