@@ -1,6 +1,7 @@
 import express from 'express';
 import { supabase } from '../config/supabase.js';
 import { logger } from '../utils/logger.js';
+import { v4 as uuidv4 } from 'uuid';
 
 const router = express.Router();
 
@@ -26,11 +27,14 @@ router.get('/db-test', async (req, res) => {
 // 测试插入数据
 router.post('/db-test', async (req, res) => {
   try {
+    // 生成有效的 UUID
+    const testId = uuidv4();
+    
     // 尝试插入测试数据
     const { data, error } = await supabase
       .from('tokens')
       .insert({
-        id: 'test-token-id',
+        id: testId,
         name: '测试令牌',
         token: 'test-token',
         is_active: true
