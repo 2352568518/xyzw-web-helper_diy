@@ -74,6 +74,7 @@
 <script lang="ts" setup>
 import { ref, reactive } from "vue";
 import { useTokenStore } from "@/stores/tokenStore";
+import apiService from "@/services/apiService";
 import { CloudUpload } from "@vicons/ionicons5";
 
 import {
@@ -136,28 +137,32 @@ const handleUrlImport = async () => {
   try {
     const response = await axios.get(urlForm.url);
     if (response.status === 200 && response.data && response.data.token) {
-      const newToken = {
+      const tokenData = {
         name: urlForm.name,
         token: response.data.token,
         server: urlForm.server || "未知",
-        wsUrl: urlForm.wsUrl || "",
-        id: Date.now().toString(),
-        sourceUrl: urlForm.url,
-        importMethod: 'url'
+        ws_url: urlForm.wsUrl || "",
+        source_url: urlForm.url,
+        import_method: 'url'
       };
-      tokenStore.addToken(newToken);
-      message.success("Token添加成功");
-      // 重置表单
-      urlForm.name = "";
-      urlForm.url = "";
-      urlForm.server = "";
-      urlForm.wsUrl = "";
-      $emit("ok");
+      
+      const result = await apiService.createToken(tokenData);
+      if (result.success) {
+        message.success("Token添加成功");
+        // 重置表单
+        urlForm.name = "";
+        urlForm.url = "";
+        urlForm.server = "";
+        urlForm.wsUrl = "";
+        $emit("ok");
+      } else {
+        message.error(`添加失败: ${result.error}`);
+      }
     } else {
       message.error("接口返回数据格式不正确，未找到token字段");
     }
-  } catch (error) {
-    message.error("获取Token失败，请检查URL地址或网络连接");
+  } catch (error: any) {
+    message.error(`获取Token失败: ${error.message}`);
   } finally {
     isImporting.value = false;
   }
