@@ -1431,6 +1431,8 @@ const importTokenFile = async () => {
                   
                   if (existsById) {
                     console.log('跳过已存在的Token（ID相同）:', tokenInfo.id);
+                    // 记录 ID 映射（ID相同，映射到自己）
+                    tokenIdMap.set(tokenInfo.id, tokenInfo.id);
                     skippedTokens++;
                     continue;
                   }
@@ -1441,6 +1443,7 @@ const importTokenFile = async () => {
                     const existingToken = existingTokens.find(t => t.token === tokenInfo.token);
                     if (existingToken) {
                       tokenIdMap.set(tokenInfo.id, existingToken.id);
+                      console.log('Token ID 映射:', tokenInfo.id, '->', existingToken.id);
                     }
                     skippedTokens++;
                     continue;
@@ -1501,23 +1504,45 @@ const importTokenFile = async () => {
             
             // 3. 导入 Token 设置 (可选，旧版本可能没有)
             if (importData.tokenSettings && Array.isArray(importData.tokenSettings)) {
+              console.log('开始导入Token设置，共', importData.tokenSettings.length, '条');
+              console.log('Token ID映射表:', Object.fromEntries(tokenIdMap));
+              
               for (const setting of importData.tokenSettings) {
                 try {
-                  const tokenId = setting.token_id || setting.tokenId;
+                  let tokenId = setting.token_id || setting.tokenId;
+                  console.log('处理Token设置，原始ID:', tokenId);
+                  
                   if (tokenId && setting.settings) {
-                    // 验证 tokenId 是否是有效的 UUID 格式
-                    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-                    if (!uuidRegex.test(tokenId)) {
-                      console.warn('跳过无效的Token ID格式:', tokenId);
+                    // 使用 ID 映射获取新的 Token ID
+                    const mappedTokenId = tokenIdMap.get(tokenId);
+                    console.log('映射后的Token ID:', mappedTokenId);
+                    
+                    if (!mappedTokenId) {
+                      console.warn('Token ID没有对应的映射，跳过:', tokenId);
                       continue;
                     }
+                    
+                    // 验证 tokenId 是否是有效的 UUID 格式
+                    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+                    if (!uuidRegex.test(mappedTokenId)) {
+                      console.warn('跳过无效的Token ID格式:', mappedTokenId);
+                      continue;
+                    }
+                    
+                    console.log('准备保存Token设置，ID:', mappedTokenId, '设置:', setting.settings);
+                    
                     const result = await apiService.saveTokenSettings(
-                      tokenId, 
+                      mappedTokenId, 
                       setting.settings, 
                       setting.template_id || setting.templateId
                     );
+                    
+                    console.log('保存Token设置结果:', result);
+                    
                     if (result.success) {
                       importedSettings++;
+                    } else {
+                      console.warn('保存Token设置失败:', result.error);
                     }
                   }
                 } catch (settingError) {
