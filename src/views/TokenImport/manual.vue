@@ -146,6 +146,29 @@ const handleImport = async () => {
     const result = await apiService.createToken(tokenData);
     if (result.success) {
       message.success("Token添加成功");
+      // 刷新 token 列表
+      const tokensResult = await apiService.getTokens();
+      if (tokensResult.success) {
+        // 清空本地 token 列表
+        tokenStore.gameTokens.value = [];
+        // 添加从后端获取的 token
+        tokensResult.data.forEach((token) => {
+          tokenStore.gameTokens.value.push({
+            id: token.id,
+            name: token.name,
+            token: token.token,
+            wsUrl: token.ws_url,
+            server: token.server,
+            remark: token.remark,
+            importMethod: token.import_method,
+            sourceUrl: token.source_url,
+            avatar: token.avatar,
+            isActive: token.is_active,
+            createdAt: token.created_at,
+            updatedAt: token.updated_at
+          });
+        });
+      }
       importForm.name = "";
       importForm.base64Token = "";
       importForm.server = "";

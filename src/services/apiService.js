@@ -27,12 +27,15 @@ class ApiService {
 
   // Token 相关 API
   async getTokens() {
+    console.log('Getting tokens from backend');
     if (!this.shouldUseBackend()) {
+      console.log('Using local token store');
       return { success: true, data: this.tokenStore.gameTokens.value };
     }
 
     try {
       const response = await apiClient.get('/api/tokens');
+      console.log('Backend tokens:', response.data);
       return response.data;
     } catch (error) {
       console.error('获取 Token 列表失败:', error);
