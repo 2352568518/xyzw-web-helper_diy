@@ -51,6 +51,16 @@
             <span>批量日常</span>
           </router-link>
           <router-link
+            to="/admin/task-monitor"
+            class="nav-item"
+            active-class="active"
+          >
+            <n-icon>
+              <TimeOutline />
+            </n-icon>
+            <span>任务监控</span>
+          </router-link>
+          <router-link
             to="/admin/message-test"
             class="nav-item"
             active-class="active"
@@ -147,6 +157,16 @@
           <span>批量日常</span>
         </router-link>
         <router-link
+          to="/admin/task-monitor"
+          class="drawer-item"
+          @click="isMobileMenuOpen = false"
+        >
+          <n-icon>
+            <TimeOutline />
+          </n-icon>
+          <span>任务监控</span>
+        </router-link>
+        <router-link
           to="/admin/message-test"
           class="drawer-item"
           @click="isMobileMenuOpen = false"
@@ -197,6 +217,7 @@ import {
   LockClosedSharp,LockOpen,
   Menu,
   Layers,
+  TimeOutline,
 } from "@vicons/ionicons5";
 
 import { useRouter } from 'vue-router'
