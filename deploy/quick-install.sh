@@ -6,7 +6,7 @@
 set -e
 
 APP_DIR="/opt/xyzw-web-helper"
-REPO_URL="https://github.com/your-username/xyzw_web_helper_diy.git"  # 修改为你的仓库地址
+REPO_URL="https://github.com/mengchunzhi/xyzw-web-helper_diy.git"
 
 echo "=========================================="
 echo "  XYZW Web Helper 快速安装脚本"

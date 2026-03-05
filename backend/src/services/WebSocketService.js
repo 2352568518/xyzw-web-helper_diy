@@ -82,6 +82,9 @@ class WebSocketClient {
       this._setupHeartbeat();
       this._processQueueLoop();
       this._updateConnectionStatus('connected');
+      
+      // 发送初始化消息获取角色信息
+      this._sendInitMessage();
     };
 
     this.socket.onmessage = (event) => {
@@ -163,6 +166,29 @@ class WebSocketClient {
   }
 
   /**
+   * 发送初始化消息
+   */
+  _sendInitMessage() {
+    // 发送获取角色信息请求，这是连接后必须发送的初始化消息
+    setTimeout(() => {
+      if (this.connected) {
+        logger.info(`发送初始化消息: ${this.tokenId}`);
+        this.sendWithPromise('role_getroleinfo', {
+          clientVersion: '2.10.3-f10a39eaa0c409f4-wx',
+          inviteUid: 0,
+          platform: 'hortor',
+          platformExt: 'mix',
+          scene: ''
+        }, 10000).then(resp => {
+          logger.info(`角色信息获取成功: ${this.tokenId}`);
+        }).catch(err => {
+          logger.error(`角色信息获取失败: ${this.tokenId}, ${err.message}`);
+        });
+      }
+    }, 500);
+  }
+
+  /**
    * 处理消息
    */
   _handleMessage(packet) {
@@ -232,12 +258,15 @@ class WebSocketClient {
    * 构建数据包（BON协议）
    */
   _buildPacket(cmd, params = {}, seq) {
+    // body 需要先进行 BON 编码（与前端一致）
+    const encodedBody = bon.encode(params);
+    
     return {
       cmd,
       ack: this.ack,
       seq: seq || ++this.seq,
       time: Date.now(),
-      body: params
+      body: encodedBody
     };
   }
 
@@ -246,12 +275,16 @@ class WebSocketClient {
    */
   _sendPacket(packet) {
     try {
-      // 使用encodeBon进行编码和加密
-      const encryptedData = encodeBon(packet, true);
+      // 1. 先对整个消息包进行 BON 编码
+      const bonData = bon.encode(packet);
+      
+      // 2. 再使用 x 加密方案进行加密
+      const x = getEnc('x');
+      const encryptedData = x.encrypt(bonData);
       
       this.socket.send(encryptedData);
       
-      logger.debug(`发送BON消息: ${packet.cmd}, 大小: ${encryptedData.length}`);
+      logger.debug(`发送BON消息: ${packet.cmd}, 原始大小: ${bonData.length}, 加密后: ${encryptedData.length}`);
     } catch (error) {
       logger.error(`BON编码失败: ${error.message}`);
       // 降级为JSON

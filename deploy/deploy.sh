@@ -9,7 +9,7 @@ set -e
 # ==================== 配置区域 ====================
 APP_NAME="xyzw-web-helper"
 APP_DIR="/opt/xyzw-web-helper"
-GIT_REPO="https://github.com/your-username/xyzw_web_helper_diy.git"  # 修改为你的仓库地址
+GIT_REPO="https://github.com/mengchunzhi/xyzw-web-helper_diy.git"
 BRANCH="main"
 
 # 端口配置
