@@ -8,6 +8,7 @@ import { v4 as uuidv4 } from 'uuid';
 import cron from 'node-cron';
 import { matchesCronExpression, calculateNextExecutionTime } from '../utils/cronUtils.js';
 import WebSocketService from './WebSocketService.js';
+import TaskExecutor from './TaskExecutor.js';
 import TokenService from './TokenService.js';
 import { buildCommandParams } from '../utils/gameCommands.js';
 
@@ -380,10 +381,32 @@ class TaskService {
       const selectedTasks = task.settings.selectedTasks || [];
       
       if (selectedTasks.length > 0) {
+        // 使用TaskExecutor执行任务
+        const executor = new TaskExecutor(wsClient, token, task.settings);
+        
         for (const taskName of selectedTasks) {
           steps.push({ name: `执行任务: ${taskName}`, status: 'running' });
-          await this.executeSpecificTask(taskName, steps, token, wsClient);
-          steps[steps.length - 1].status = 'success';
+          
+          try {
+            const result = await executor.execute(taskName);
+            if (result.success) {
+              steps[steps.length - 1].status = 'success';
+              // 添加详细步骤
+              if (result.steps) {
+                result.steps.forEach(s => {
+                  if (s.name !== steps[steps.length - 1].name) {
+                    steps.push(s);
+                  }
+                });
+              }
+            } else {
+              steps[steps.length - 1].status = 'failed';
+              steps[steps.length - 1].error = result.error;
+            }
+          } catch (error) {
+            steps[steps.length - 1].status = 'failed';
+            steps[steps.length - 1].error = error.message;
+          }
         }
       } else {
         // 根据任务类型执行不同的步骤
@@ -444,6 +467,20 @@ class TaskService {
         break;
       case 'legion':
         await this.executeLegionTask(steps, token, wsClient, {});
+        break;
+      case 'resetBottles':
+        // 重置罐子
+        steps.push({ name: '停止计时', status: 'running' });
+        await wsClient.sendWithPromise('bottlehelper_stop', {});
+        steps[steps.length - 1].status = 'success';
+        await new Promise(r => setTimeout(r, 500));
+        steps.push({ name: '开始计时', status: 'running' });
+        await wsClient.sendWithPromise('bottlehelper_start', {});
+        steps[steps.length - 1].status = 'success';
+        break;
+      case 'claimBottles':
+        // 领取盐罐
+        await wsClient.sendWithPromise('bottlehelper_claim', {});
         break;
       default:
         logger.warn(`未知任务: ${taskName}`);

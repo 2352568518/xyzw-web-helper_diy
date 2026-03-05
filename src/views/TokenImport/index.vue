@@ -1448,7 +1448,8 @@ const importTokenFile = async () => {
                     import_method: data.import_method || data.importMethod || 'import',
                     source_url: data.source_url || data.sourceUrl || null,
                     avatar: data.avatar || '',
-                    is_active: data.is_active !== false
+                    is_active: data.is_active !== false,
+                    sort_order: data.sort_order || data.sortOrder || undefined
                   };
                   
                   // 跳过无效的 token

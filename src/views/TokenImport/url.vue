@@ -167,6 +167,7 @@ const handleUrlImport = async () => {
               sourceUrl: token.source_url,
               avatar: token.avatar,
               isActive: token.is_active,
+              sortOrder: token.sort_order,
               createdAt: token.created_at,
               updatedAt: token.updated_at
             });

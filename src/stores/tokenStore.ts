@@ -210,6 +210,12 @@ export const useTokenStore = defineStore("tokens", () => {
       });
     };
     let id = tokenData.id || generateUUID();
+
+    // 计算新的sortOrder（排在最后）
+    const maxSortOrder = gameTokens.value.reduce((max, token) => {
+      return Math.max(max, token.sortOrder || 0);
+    }, 0);
+
     const newToken = {
       id: id,
       name: tokenData.name,
@@ -226,6 +232,7 @@ export const useTokenStore = defineStore("tokens", () => {
       sourceUrl: tokenData.sourceUrl || null, // Token来源URL（用于刷新）
       importMethod: tokenData.importMethod || "manual", // 导入方式：manual 或 url
       avatar: tokenData.avatar || "", // 用户头像
+      sortOrder: tokenData.sortOrder !== undefined ? tokenData.sortOrder : maxSortOrder + 1, // 排序顺序
     };
 
     gameTokens.value.push(newToken);
