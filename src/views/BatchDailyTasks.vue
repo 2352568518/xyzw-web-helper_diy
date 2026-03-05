@@ -191,6 +191,12 @@
             <n-space align="center">
               <n-button-group size="small">
                 <n-button
+                  @click="toggleSort('manual')"
+                  :type="sortConfig.field === 'manual' ? 'primary' : 'default'"
+                >
+                  自定义
+                </n-button>
+                <n-button
                   @click="toggleSort('name')"
                   :type="sortConfig.field === 'name' ? 'primary' : 'default'"
                 >
@@ -2358,7 +2364,7 @@ const sortConfig = ref(
   savedSortConfig
     ? JSON.parse(savedSortConfig)
     : {
-        field: "createdAt", // 排序字段：name, server, createdAt, lastUsed
+        field: "manual", // 排序字段：manual, name, server, createdAt, lastUsed
         direction: "asc", // 排序方向：asc, desc
       },
 );
