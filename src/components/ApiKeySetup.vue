@@ -53,13 +53,13 @@
 
 <script setup>
 import { ref, reactive } from 'vue';
+import { useRouter } from 'vue-router';
 import { useMessage } from 'naive-ui';
 import { KeyOutline } from '@vicons/ionicons5';
 import apiService, { setBackendApiKey } from '@/services/apiService';
-import { useApiKey } from '@/composables/useApiKey';
 
+const router = useRouter();
 const message = useMessage();
-const { setApiKeyVerified } = useApiKey();
 
 const formRef = ref(null);
 const loading = ref(false);
@@ -93,22 +93,21 @@ const handleSubmit = async () => {
     
     if (testResult.success) {
       // 验证成功
-      setApiKeyVerified(true);
       message.success('API 密钥验证成功');
-      // 刷新页面以初始化应用
-      window.location.reload();
-    } else if (testResult.error?.includes('Unauthorized') === false) {
+      // 跳转到首页
+      router.push('/home');
+    } else if (testResult.error && !testResult.error.includes('Unauthorized')) {
       // 验证成功（没有401错误）
-      setApiKeyVerified(true);
       message.success('API 密钥验证成功');
-      window.location.reload();
+      router.push('/home');
     } else {
       // 验证失败，清除密钥
       setBackendApiKey('');
-      errorMessage.value = testResult.error || 'API 密钥验证失败，请检查后端服务是否运行';
+      errorMessage.value = testResult.error || 'API 密钥验证失败，请检查密钥是否正确';
     }
   } catch (error) {
     console.error('API 密钥验证失败:', error);
+    setBackendApiKey('');
     errorMessage.value = 'API 密钥验证失败，请检查后端服务是否运行';
   } finally {
     loading.value = false;

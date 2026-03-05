@@ -5,8 +5,7 @@
         <n-notification-provider>
           <n-dialog-provider>
             <div id="app">
-              <ApiKeySetup v-if="showApiKeySetup" />
-              <router-view v-else />
+              <router-view />
             </div>
           </n-dialog-provider>
         </n-notification-provider>
@@ -16,18 +15,11 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from "vue";
-import { useRouter } from "vue-router";
+import { computed } from "vue";
 import { darkTheme } from "naive-ui";
 import { useTheme } from "@/composables/useTheme";
-import ApiKeySetup from "@/components/ApiKeySetup.vue";
 
-const router = useRouter();
 const { isDark, initTheme } = useTheme();
-
-// 检查是否需要显示API密钥设置
-const API_KEY_STORAGE_KEY = 'xyzw_backend_api_key';
-const showApiKeySetup = ref(true);
 
 // 初始化主题
 initTheme();
@@ -35,34 +27,6 @@ initTheme();
 // Naive UI 主题
 const naiveTheme = computed(() => {
   return isDark.value ? darkTheme : null;
-});
-
-// 检查API密钥是否已设置
-const checkApiKey = () => {
-  if (typeof window === 'undefined') return true;
-  const key = localStorage.getItem(API_KEY_STORAGE_KEY);
-  return !!key;
-};
-
-// 监听localStorage变化
-const handleStorageChange = (e) => {
-  if (e.key === API_KEY_STORAGE_KEY) {
-    if (e.newValue) {
-      showApiKeySetup.value = false;
-      // 刷新页面以重新初始化应用
-      window.location.reload();
-    }
-  }
-};
-
-onMounted(() => {
-  // 检查是否已有API密钥
-  if (checkApiKey()) {
-    showApiKeySetup.value = false;
-  }
-  
-  // 监听localStorage变化
-  window.addEventListener('storage', handleStorageChange);
 });
 </script>
 

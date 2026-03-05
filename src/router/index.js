@@ -8,6 +8,15 @@ const generatedRoutes = autoRoutes.routes ?? [];
 const my_routes = [
   {
     path: '/',
+    name: 'ApiKeySetup',
+    component: () => import('@/components/ApiKeySetup.vue'),
+    meta: {
+      title: 'API密钥设置',
+      requiresToken: false
+    }
+  },
+  {
+    path: '/home',
     name: 'Home',
     component: () => import('@/views/Home.vue'),
     meta: {
@@ -164,6 +173,22 @@ autoRoutes.handleHotUpdate?.(router);
 
 // 导航守卫
 router.beforeEach((to, from, next) => {
+  // 首先检查API密钥
+  const API_KEY_STORAGE_KEY = 'xyzw_backend_api_key';
+  const apiKey = localStorage.getItem(API_KEY_STORAGE_KEY);
+  
+  // 如果没有API密钥且不在API密钥设置页面，重定向到根路径
+  if (!apiKey && to.name !== 'ApiKeySetup') {
+    next('/');
+    return;
+  }
+  
+  // 如果有API密钥且在API密钥设置页面，重定向到首页
+  if (apiKey && to.name === 'ApiKeySetup') {
+    next('/home');
+    return;
+  }
+  
   const tokenStore = useTokenStore()
 
   // 设置页面标题
@@ -177,7 +202,7 @@ router.beforeEach((to, from, next) => {
   // if (to.meta.requiresToken  && tokenStore.getWebSocketStatus(tokenStore.selectedToken.id)=="disconnected") {
     if (to.meta.requiresToken  && !tokenStore.hasTokens) {
     next('/tokens')
-  } else if (to.path === '/' && tokenStore.hasTokens) {
+  } else if (to.path === '/home' && tokenStore.hasTokens) {
     // 首页重定向逻辑
     if (tokenStore.selectedToken) {
       next('/admin/dashboard')
