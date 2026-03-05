@@ -2845,28 +2845,57 @@ const batchSettings = reactive({
   smartDepartureMatchAll: false,
 });
 
-// Load batch settings from localStorage
-const loadBatchSettings = () => {
+// Load batch settings
+const loadBatchSettings = async () => {
   try {
-    const saved = localStorage.getItem("batchSettings");
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      Object.assign(batchSettings, parsed);
+    // 检查是否使用后端API
+    const useBackend = await apiService.shouldUseBackend();
+    
+    if (useBackend) {
+      // 从后端加载
+      const result = await apiService.getGlobalSettings();
+      if (result.success && result.data) {
+        Object.assign(batchSettings, result.data);
+        console.log('Batch settings loaded from backend');
+      }
+    } else {
+      // 从localStorage加载
+      const saved = localStorage.getItem("batchSettings");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        Object.assign(batchSettings, parsed);
+      }
+      console.log('Batch settings loaded from localStorage');
     }
   } catch (error) {
     console.error("Failed to load batch settings:", error);
   }
 };
 
-// Save batch settings to localStorage
-const saveBatchSettings = () => {
+// Save batch settings
+const saveBatchSettings = async () => {
   try {
-    localStorage.setItem("batchSettings", JSON.stringify(batchSettings));
-    message.success("定时批量任务设置已保存");
-    showBatchSettingsModal.value = false;
+    // 检查是否使用后端API
+    const useBackend = await apiService.shouldUseBackend();
+    
+    if (useBackend) {
+      // 保存到后端
+      const result = await apiService.saveGlobalSettings(batchSettings);
+      if (result.success) {
+        message.success("定时批量任务设置已保存到云端");
+        showBatchSettingsModal.value = false;
+      } else {
+        throw new Error(result.error || '保存失败');
+      }
+    } else {
+      // 保存到localStorage
+      localStorage.setItem("batchSettings", JSON.stringify(batchSettings));
+      message.success("定时批量任务设置已保存");
+      showBatchSettingsModal.value = false;
+    }
   } catch (error) {
     console.error("Failed to save batch settings:", error);
-    message.error("保存设置失败");
+    message.error("保存设置失败: " + error.message);
   }
 };
 
@@ -3394,7 +3423,7 @@ const exportConfig = async () => {
     const taskTemplatesList = templatesResult.success ? (templatesResult.data || []) : [];
 
     const exportData = {
-      version: "1.2",
+      version: "1.3",
       exportTime: new Date().toISOString(),
       tokens: tokens.value.map((t) => ({
         id: t.id,
@@ -3410,28 +3439,7 @@ const exportConfig = async () => {
         updatedAt: t.updatedAt,
       })),
       scheduledTasks: filteredScheduledTasks,
-      batchSettings: {
-        boxCount: batchSettings.boxCount,
-        fishCount: batchSettings.fishCount,
-        recruitCount: batchSettings.recruitCount,
-        defaultBoxType: batchSettings.defaultBoxType,
-        defaultFishType: batchSettings.defaultFishType,
-        carMinColor: batchSettings.carMinColor,
-        commandDelay: batchSettings.commandDelay,
-        taskDelay: batchSettings.taskDelay,
-        actionDelay: batchSettings.actionDelay,
-        battleDelay: batchSettings.battleDelay,
-        refreshDelay: batchSettings.refreshDelay,
-        longDelay: batchSettings.longDelay,
-        maxActive: batchSettings.maxActive,
-        tokenListColumns: batchSettings.tokenListColumns,
-        useGoldRefreshFallback: batchSettings.useGoldRefreshFallback,
-        smartDepartureGoldThreshold: batchSettings.smartDepartureGoldThreshold,
-        smartDepartureRecruitThreshold: batchSettings.smartDepartureRecruitThreshold,
-        smartDepartureJadeThreshold: batchSettings.smartDepartureJadeThreshold,
-        smartDepartureTicketThreshold: batchSettings.smartDepartureTicketThreshold,
-        smartDepartureMatchAll: batchSettings.smartDepartureMatchAll,
-      },
+      batchSettings: { ...batchSettings },
       tokenSettings: tokenSettings,
       taskTemplates: taskTemplatesList,
     };

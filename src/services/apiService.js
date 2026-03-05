@@ -400,6 +400,52 @@ class ApiService {
       return { success: false, error: error.message };
     }
   }
+
+  // 全局设置相关 API
+  async getGlobalSettings() {
+    if (!this.shouldUseBackend()) {
+      const settings = localStorage.getItem('batchSettings');
+      return { success: true, data: settings ? JSON.parse(settings) : {} };
+    }
+
+    try {
+      const response = await apiClient.get('/api/global-settings');
+      return response.data;
+    } catch (error) {
+      console.error('获取全局设置失败:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  async saveGlobalSettings(settings) {
+    if (!this.shouldUseBackend()) {
+      localStorage.setItem('batchSettings', JSON.stringify(settings));
+      return { success: true, data: settings };
+    }
+
+    try {
+      const response = await apiClient.post('/api/global-settings', settings);
+      return response.data;
+    } catch (error) {
+      console.error('保存全局设置失败:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  async resetGlobalSettings() {
+    if (!this.shouldUseBackend()) {
+      localStorage.removeItem('batchSettings');
+      return { success: true, message: '全局设置已重置' };
+    }
+
+    try {
+      const response = await apiClient.post('/api/global-settings/reset');
+      return response.data;
+    } catch (error) {
+      console.error('重置全局设置失败:', error);
+      return { success: false, error: error.message };
+    }
+  }
 }
 
 // 导出单例

@@ -69,6 +69,45 @@ CREATE TABLE IF NOT EXISTS connections (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- 创建 global_settings 表（全局设置）
+CREATE TABLE IF NOT EXISTS global_settings (
+  id VARCHAR(50) PRIMARY KEY DEFAULT 'default',
+  settings JSONB NOT NULL DEFAULT '{}',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 插入默认全局设置
+INSERT INTO global_settings (id, settings) 
+VALUES ('default', '{
+  "boxCount": 100,
+  "fishCount": 100,
+  "recruitCount": 100,
+  "defaultBoxType": 2001,
+  "defaultFishType": 1,
+  "tokenListColumns": 2,
+  "useGoldRefreshFallback": false,
+  "commandDelay": 500,
+  "taskDelay": 500,
+  "actionDelay": 300,
+  "battleDelay": 500,
+  "refreshDelay": 1000,
+  "longDelay": 3000,
+  "maxActive": 2,
+  "carMinColor": 4,
+  "connectionTimeout": 10000,
+  "reconnectDelay": 1000,
+  "maxLogEntries": 1000,
+  "enableRefresh": false,
+  "refreshInterval": 360,
+  "smartDepartureGoldThreshold": 0,
+  "smartDepartureRecruitThreshold": 0,
+  "smartDepartureJadeThreshold": 0,
+  "smartDepartureTicketThreshold": 0,
+  "smartDepartureMatchAll": false
+}')
+ON CONFLICT (id) DO NOTHING;
+
 -- 创建索引
 CREATE INDEX IF NOT EXISTS idx_tokens_is_active ON tokens(is_active);
 CREATE INDEX IF NOT EXISTS idx_tasks_is_active ON tasks(is_active);
