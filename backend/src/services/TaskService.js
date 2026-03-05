@@ -189,20 +189,20 @@ class TaskService {
         delete updateData.selectedTasks;
       }
 
-      // 处理字段名转换
-      if (updateData.runType) {
+      // 处理字段名转换 - 无论值是否存在都要处理，避免发送驼峰命名字段到数据库
+      if ('runType' in updateData) {
         updateData.run_type = updateData.runType;
         delete updateData.runType;
       }
-      if (updateData.runTime) {
+      if ('runTime' in updateData) {
         updateData.run_time = updateData.runTime;
         delete updateData.runTime;
       }
-      if (updateData.cronExpression) {
+      if ('cronExpression' in updateData) {
         updateData.cron_expression = updateData.cronExpression;
         delete updateData.cronExpression;
       }
-      if (updateData.enabled !== undefined) {
+      if ('enabled' in updateData) {
         updateData.is_active = updateData.enabled;
         delete updateData.enabled;
       }

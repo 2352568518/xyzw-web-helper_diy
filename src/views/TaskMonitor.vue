@@ -606,7 +606,134 @@ const formatRunInfo = (task) => {
 
 const formatNextRun = (task) => {
   if (!task.is_active) return '已暂停';
-  return '计算中...';
+  
+  const now = new Date();
+  let nextRun = null;
+  
+  if (task.run_type === 'daily' && task.run_time) {
+    // 每日任务
+    const [hours, minutes] = task.run_time.split(':').map(Number);
+    nextRun = new Date(now);
+    nextRun.setHours(hours, minutes, 0, 0);
+    
+    // 如果今天的时间已过，设置为明天
+    if (nextRun <= now) {
+      nextRun.setDate(nextRun.getDate() + 1);
+    }
+  } else if (task.run_type === 'cron' && task.cron_expression) {
+    // Cron任务 - 简单解析
+    nextRun = calculateNextCronRun(task.cron_expression);
+  }
+  
+  if (!nextRun) return '-';
+  
+  // 格式化显示
+  const diffMs = nextRun - now;
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMins / 60);
+  const diffDays = Math.floor(diffHours / 24);
+  
+  const timeStr = nextRun.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+  const dateStr = nextRun.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
+  
+  if (diffDays > 0) {
+    return `${dateStr} ${timeStr} (${diffDays}天后)`;
+  } else if (diffHours > 0) {
+    return `${timeStr} (${diffHours}小时后)`;
+  } else if (diffMins > 0) {
+    return `${timeStr} (${diffMins}分钟后)`;
+  } else {
+    return `${timeStr} (即将执行)`;
+  }
+};
+
+// 简单的Cron表达式解析（仅支持基本格式）
+const calculateNextCronRun = (cronExpression) => {
+  try {
+    const parts = cronExpression.split(' ').filter(Boolean);
+    if (parts.length < 5) return null;
+    
+    const [minuteField, hourField, dayOfMonthField, monthField, dayOfWeekField] = parts;
+    
+    // 解析分钟和小时
+    const minutes = parseCronFieldValues(minuteField, 0, 59);
+    const hours = parseCronFieldValues(hourField, 0, 23);
+    
+    if (minutes.length === 0 || hours.length === 0) return null;
+    
+    const now = new Date();
+    now.setSeconds(0, 0);
+    
+    // 从当前时间开始，寻找下一个匹配的时间
+    for (let d = 0; d < 366; d++) {
+      const checkDate = new Date(now);
+      checkDate.setDate(checkDate.getDate() + d);
+      
+      // 检查月份和日期是否匹配
+      const month = checkDate.getMonth() + 1;
+      const dayOfMonth = checkDate.getDate();
+      const dayOfWeek = checkDate.getDay();
+      
+      const months = parseCronFieldValues(monthField, 1, 12);
+      const daysOfMonth = parseCronFieldValues(dayOfMonthField, 1, 31);
+      const daysOfWeek = parseCronFieldValues(dayOfWeekField, 0, 6);
+      
+      if (months.length > 0 && !months.includes(month)) continue;
+      if (daysOfMonth.length > 0 && !daysOfMonth.includes(dayOfMonth)) continue;
+      if (daysOfWeek.length > 0 && !daysOfWeek.includes(dayOfWeek)) continue;
+      
+      // 找到匹配的日期，检查时间
+      for (const hour of hours) {
+        for (const minute of minutes) {
+          const candidate = new Date(checkDate);
+          candidate.setHours(hour, minute, 0, 0);
+          
+          if (candidate > now) {
+            return candidate;
+          }
+        }
+      }
+    }
+    
+    return null;
+  } catch (e) {
+    console.error('解析Cron表达式失败:', e);
+    return null;
+  }
+};
+
+// 解析Cron字段值
+const parseCronFieldValues = (field, min, max) => {
+  if (field === '*') {
+    const values = [];
+    for (let i = min; i <= max; i++) values.push(i);
+    return values;
+  }
+  
+  if (field.includes('/')) {
+    const [base, step] = field.split('/');
+    const stepNum = parseInt(step, 10);
+    const values = [];
+    let start = base === '*' ? min : parseInt(base, 10);
+    for (let i = start; i <= max; i += stepNum) {
+      values.push(i);
+    }
+    return values;
+  }
+  
+  if (field.includes(',')) {
+    return field.split(',').map(v => parseInt(v, 10)).filter(v => !isNaN(v));
+  }
+  
+  if (field.includes('-')) {
+    const [start, end] = field.split('-').map(v => parseInt(v, 10));
+    const values = [];
+    for (let i = start; i <= end; i++) values.push(i);
+    return values;
+  }
+  
+  const num = parseInt(field, 10);
+  return isNaN(num) ? [] : [num];
 };
 
 const formatTime = (iso) => {
