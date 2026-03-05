@@ -44,6 +44,31 @@ apiClient.interceptors.request.use(
   }
 );
 
+// 响应拦截器 - 处理401错误
+apiClient.interceptors.response.use(
+  (response) => {
+    return response;
+  },
+  (error) => {
+    // 如果是401错误，说明API密钥无效
+    if (error.response?.status === 401) {
+      console.log('API密钥无效，清除本地存储的密钥');
+      
+      // 清除无效的API密钥
+      if (typeof window !== 'undefined') {
+        window.localStorage.removeItem(API_KEY_STORAGE_KEY);
+        
+        // 如果不在API密钥设置页面，跳转到设置页面
+        if (window.location.pathname !== '/') {
+          window.location.href = '/';
+        }
+      }
+    }
+    
+    return Promise.reject(error);
+  }
+);
+
 // 供其他地方在运行时更新 API Key
 export const setBackendApiKey = (key) => {
   console.log('=== setBackendApiKey called ===');
