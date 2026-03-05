@@ -6,8 +6,7 @@ import WebSocket from 'ws';
 import { logger } from '../utils/logger.js';
 import { config } from '../config/index.js';
 import { supabase } from '../config/supabase.js';
-import { BonEncoder, BonDecoder, encodeBon, decodeBon } from '../utils/bonProtocol.js';
-import * as lz4 from 'lz4';
+import { BonEncoder, BonDecoder, encodeBon, decodeBon, autoDecrypt, bon, getEnc } from '../utils/bonProtocol.js';
 
 /**
  * 错误码映射表
@@ -140,35 +139,23 @@ class WebSocketClient {
   }
 
   /**
-   * 解析二进制数据（BON协议）
+   * 解析二进制数据（BON协议 + 加密）
    */
   _parseBinaryData(data) {
     try {
       // 转换为Buffer
       const buffer = Buffer.isBuffer(data) ? data : Buffer.from(data);
       
-      // 检查是否压缩（前4字节是原始大小）
-      const originalSize = buffer.readUInt32LE(0);
-      let bonData = buffer.slice(4);
+      // 使用bon.decode自动解密和解码
+      const packet = bon.decode(buffer);
       
-      // 如果originalSize大于0，说明数据被压缩了
-      if (originalSize > 0 && bonData.length < originalSize) {
-        // 需要解压
-        const decompressed = Buffer.alloc(originalSize);
-        lz4.decodeBlock(bonData, decompressed);
-        bonData = decompressed;
+      if (packet && typeof packet === 'object') {
+        logger.debug(`BON解码成功: cmd=${packet.cmd || 'unknown'}`);
+        return packet;
       } else {
-        // 数据没有压缩，直接使用（去掉前4字节）
-        bonData = buffer;
+        logger.warn(`BON解码返回非对象: ${typeof packet}`);
+        return { error: 'Invalid packet', binary: true };
       }
-      
-      // 使用BON解码器解码
-      const decoder = new BonDecoder();
-      decoder.reset(bonData);
-      const packet = decoder.decode();
-      
-      logger.debug(`BON解码成功: ${JSON.stringify(packet).substring(0, 200)}`);
-      return packet;
     } catch (error) {
       logger.error(`BON解码失败: ${error.message}`);
       return { error: error.message, binary: true };
@@ -255,27 +242,16 @@ class WebSocketClient {
   }
 
   /**
-   * 编码并发送数据包（BON协议）
+   * 编码并发送数据包（BON协议 + 加密）
    */
   _sendPacket(packet) {
     try {
-      const encoder = new BonEncoder();
-      encoder.encode(packet);
-      const bonData = encoder.getBytes();
+      // 使用encodeBon进行编码和加密
+      const encryptedData = encodeBon(packet, true);
       
-      // 压缩数据
-      const maxCompressedSize = lz4.encodeBound(bonData.length);
-      const compressed = Buffer.alloc(maxCompressedSize + 4);
-      const compressedSize = lz4.encodeBlock(bonData, compressed, 4);
+      this.socket.send(encryptedData);
       
-      // 写入原始大小
-      compressed.writeUInt32LE(bonData.length, 0);
-      
-      // 发送压缩后的数据
-      const finalData = compressed.slice(0, compressedSize + 4);
-      this.socket.send(finalData);
-      
-      logger.debug(`发送BON消息: ${packet.cmd}, 原始大小: ${bonData.length}, 压缩后: ${finalData.length}`);
+      logger.debug(`发送BON消息: ${packet.cmd}, 大小: ${encryptedData.length}`);
     } catch (error) {
       logger.error(`BON编码失败: ${error.message}`);
       // 降级为JSON

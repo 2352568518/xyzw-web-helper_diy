@@ -1,9 +1,9 @@
 /**
  * BON (Binary Object Notation) 协议实现
- * Node.js 版本
+ * Node.js 版本 - 完整支持加密解密
  */
 
-import lz4 from 'lz4';
+import * as lz4 from 'lz4';
 
 // 数据类型常量
 const BON_NULL = 0;
@@ -417,25 +417,151 @@ export class BonDecoder {
         return new Date(ts);
       }
       default:
-        throw new Error(`Unknown BON type: ${type}`);
+        // 未知类型返回null，不抛出错误
+        console.warn(`Unknown BON type: ${type}, position: ${this.dr.position}`);
+        return null;
     }
   }
 }
 
+// ==================== 加密方案 ====================
+
 /**
- * 编码对象为 BON 格式
+ * lz4 + 头部掩码的 "lx" 方案
  */
-export function encodeBon(obj, compress = false) {
+const lx = {
+  encrypt: (buf) => {
+    let e = lz4.compress(buf);
+    const t = 2 + ~~(Math.random() * 248);
+    for (let n = Math.min(e.length, 100); --n >= 0;) e[n] ^= t;
+
+    e[0] = 112;
+    e[1] = 108;
+    e[2] =
+      (e[2] & 0b10101010) |
+      (((t >> 7) & 1) << 6) |
+      (((t >> 6) & 1) << 4) |
+      (((t >> 5) & 1) << 2) |
+      ((t >> 4) & 1);
+    e[3] =
+      (e[3] & 0b10101010) |
+      (((t >> 3) & 1) << 6) |
+      (((t >> 2) & 1) << 4) |
+      (((t >> 1) & 1) << 2) |
+      (t & 1);
+    return e;
+  },
+  decrypt: (e) => {
+    const t =
+      (((e[2] >> 6) & 1) << 7) |
+      (((e[2] >> 4) & 1) << 6) |
+      (((e[2] >> 2) & 1) << 5) |
+      ((e[2] & 1) << 4) |
+      (((e[3] >> 6) & 1) << 3) |
+      (((e[3] >> 4) & 1) << 2) |
+      (((e[3] >> 2) & 1) << 1) |
+      (e[3] & 1);
+    for (let n = Math.min(100, e.length); --n >= 2;) e[n] ^= t;
+    e[0] = 4;
+    e[1] = 34;
+    e[2] = 77;
+    e[3] = 24;
+    return lz4.decompress(e);
+  },
+};
+
+/**
+ * 随机首 4 字节 + XOR 的 "x" 方案
+ */
+const x = {
+  encrypt: (e) => {
+    const rnd = ~~(Math.random() * 0xffffffff) >>> 0;
+    const n = Buffer.alloc(e.length + 4);
+    n[0] = rnd & 0xff;
+    n[1] = (rnd >>> 8) & 0xff;
+    n[2] = (rnd >>> 16) & 0xff;
+    n[3] = (rnd >>> 24) & 0xff;
+    e.copy(n, 4);
+    const r = 2 + ~~(Math.random() * 248);
+    for (let i = n.length; --i >= 0;) n[i] ^= r;
+    n[0] = 112;
+    n[1] = 120;
+    n[2] =
+      (n[2] & 0b10101010) |
+      (((r >> 7) & 1) << 6) |
+      (((r >> 6) & 1) << 4) |
+      (((r >> 5) & 1) << 2) |
+      ((r >> 4) & 1);
+    n[3] =
+      (n[3] & 0b10101010) |
+      (((r >> 3) & 1) << 6) |
+      (((r >> 2) & 1) << 4) |
+      (((r >> 1) & 1) << 2) |
+      (r & 1);
+    return n;
+  },
+  decrypt: (e) => {
+    const t =
+      (((e[2] >> 6) & 1) << 7) |
+      (((e[2] >> 4) & 1) << 6) |
+      (((e[2] >> 2) & 1) << 5) |
+      ((e[2] & 1) << 4) |
+      (((e[3] >> 6) & 1) << 3) |
+      (((e[3] >> 4) & 1) << 2) |
+      (((e[3] >> 2) & 1) << 1) |
+      (e[3] & 1);
+    for (let n = e.length; --n >= 4;) e[n] ^= t;
+    return e.slice(4);
+  },
+};
+
+/**
+ * 加密器注册表
+ */
+const registry = new Map();
+registry.set('lx', lx);
+registry.set('x', x);
+
+/**
+ * 获取加密器
+ */
+export function getEnc(name) {
+  return registry.get(name) || registry.get('x');
+}
+
+/**
+ * 自动检测并解密
+ */
+export function autoDecrypt(buf) {
+  const e = Buffer.isBuffer(buf) ? buf : Buffer.from(buf);
+  
+  // 检查加密类型
+  if (e.length > 4 && e[0] === 112 && e[1] === 108) {
+    // lx 加密
+    return lx.decrypt(e);
+  } else if (e.length > 4 && e[0] === 112 && e[1] === 120) {
+    // x 加密
+    return x.decrypt(e);
+  } else if (e.length > 4 && e[0] === 112 && e[1] === 116) {
+    // xtm 加密 (需要XXTEA，暂不支持)
+    console.warn('XTM encryption not supported');
+    return e;
+  }
+  
+  // 未加密，直接返回
+  return e;
+}
+
+/**
+ * 编码对象为 BON 格式并加密
+ */
+export function encodeBon(obj, encrypt = true) {
   const encoder = new BonEncoder();
   encoder.encode(obj);
   const bytes = encoder.getBytes();
   
-  if (compress) {
-    const compressed = lz4.compress(bytes);
-    const result = Buffer.alloc(compressed.length + 4);
-    result.writeUInt32LE(bytes.length, 0);
-    compressed.copy(result, 4);
-    return result;
+  if (encrypt) {
+    return x.encrypt(bytes);
   }
   
   return bytes;
@@ -444,18 +570,35 @@ export function encodeBon(obj, compress = false) {
 /**
  * 解码 BON 格式数据
  */
-export function decodeBon(bytes, compressed = false) {
-  let data = bytes;
+export function decodeBon(bytes) {
+  // 先解密
+  const decrypted = autoDecrypt(bytes);
   
-  if (compressed) {
-    const originalSize = bytes.readUInt32LE(0);
-    data = lz4.decompress(bytes.slice(4), originalSize);
-  }
-  
+  // 再解码
   const decoder = new BonDecoder();
-  decoder.reset(data);
+  decoder.reset(decrypted);
   return decoder.decode();
 }
+
+// 单例实例
+const _enc = new BonEncoder();
+const _dec = new BonDecoder();
+
+/**
+ * BON 编解码便捷对象
+ */
+export const bon = {
+  encode: (value) => {
+    _enc.reset();
+    _enc.encode(value);
+    return _enc.getBytes();
+  },
+  decode: (bytes) => {
+    const decrypted = autoDecrypt(bytes);
+    _dec.reset(decrypted);
+    return _dec.decode();
+  }
+};
 
 export default {
   BonEncoder,
@@ -463,5 +606,10 @@ export default {
   DataReader,
   DataWriter,
   encodeBon,
-  decodeBon
+  decodeBon,
+  getEnc,
+  autoDecrypt,
+  bon,
+  lx,
+  x
 };
