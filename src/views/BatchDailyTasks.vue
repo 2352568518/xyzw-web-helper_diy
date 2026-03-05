@@ -2383,6 +2383,13 @@ const towerEnergy = computed(() => {
 
 // 排序后的游戏角色Token列表
 const sortedTokens = computed(() => {
+  // 手动排序模式，使用sort_order字段
+  if (sortConfig.value.field === 'manual') {
+    return [...tokenStore.gameTokens].sort((tokenA, tokenB) => {
+      return (tokenA.sortOrder || 0) - (tokenB.sortOrder || 0);
+    });
+  }
+
   return [...tokenStore.gameTokens].sort((tokenA, tokenB) => {
     let valueA, valueB;
 

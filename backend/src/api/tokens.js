@@ -86,4 +86,21 @@ router.get('/active/list', async (req, res) => {
   }
 });
 
+/**
+ * 批量更新Token排序
+ */
+router.post('/update-order', async (req, res) => {
+  try {
+    const { orders } = req.body; // orders 格式: [{ id: 'token-id', sort_order: 1 }, ...]
+    if (!Array.isArray(orders)) {
+      return res.status(400).json({ success: false, error: 'orders 必须是数组' });
+    }
+    await TokenService.updateTokensOrder(orders);
+    res.json({ success: true, message: '排序更新成功' });
+  } catch (error) {
+    logger.error(`批量更新Token排序失败: ${error.message}`);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 export default router;

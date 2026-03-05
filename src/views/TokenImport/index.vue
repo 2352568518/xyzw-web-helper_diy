@@ -704,8 +704,11 @@ const sortConfig = ref(
 
 // 排序后的游戏角色Token列表
 const sortedTokens = computed(() => {
+  // 手动排序模式，使用sortOrder字段
   if (sortConfig.value.field === 'manual') {
-    return tokenStore.gameTokens;
+    return [...tokenStore.gameTokens].sort((tokenA, tokenB) => {
+      return (tokenA.sortOrder || 0) - (tokenB.sortOrder || 0);
+    });
   }
 
   return [...tokenStore.gameTokens].sort((tokenA, tokenB) => {
@@ -778,7 +781,7 @@ const handleDragOver = (event) => {
   event.dataTransfer.dropEffect = "move";
 };
 
-const handleDrop = (index, event) => {
+const handleDrop = async (index, event) => {
   event.preventDefault();
   if (dragIndex.value === null || dragIndex.value === index) return;
 
@@ -799,8 +802,25 @@ const handleDrop = (index, event) => {
   // 保存排序设置
   localStorage.setItem("tokenSortConfig", JSON.stringify(sortConfig.value));
   
+  // 保存排序到后端
+  const orders = currentTokens.map((token, idx) => ({
+    id: token.id,
+    sort_order: idx
+  }));
+  
+  try {
+    const result = await apiService.updateTokensOrder(orders);
+    if (result.success) {
+      message.success("Token 顺序已更新并同步到云端");
+    } else {
+      message.warning("Token 顺序已更新，但同步到云端失败");
+    }
+  } catch (error) {
+    console.error('保存排序失败:', error);
+    message.warning("Token 顺序已更新，但同步到云端失败");
+  }
+  
   dragIndex.value = null;
-  message.success("Token 顺序已更新");
 };
 
 // 编辑表单

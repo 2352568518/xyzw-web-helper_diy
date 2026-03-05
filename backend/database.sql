@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS tokens (
   source_url TEXT,
   avatar VARCHAR(255),
   is_active BOOLEAN DEFAULT true,
+  sort_order INTEGER DEFAULT 0,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -110,8 +111,17 @@ ON CONFLICT (id) DO NOTHING;
 
 -- 创建索引
 CREATE INDEX IF NOT EXISTS idx_tokens_is_active ON tokens(is_active);
+CREATE INDEX IF NOT EXISTS idx_tokens_sort_order ON tokens(sort_order);
 CREATE INDEX IF NOT EXISTS idx_tasks_is_active ON tasks(is_active);
 CREATE INDEX IF NOT EXISTS idx_task_executions_task_id ON task_executions(task_id);
 CREATE INDEX IF NOT EXISTS idx_task_executions_token_id ON task_executions(token_id);
 CREATE INDEX IF NOT EXISTS idx_task_executions_status ON task_executions(status);
 CREATE INDEX IF NOT EXISTS idx_token_settings_token_id ON token_settings(token_id);
+
+-- 如果tokens表已存在但没有sort_order字段，则添加该字段
+DO $$ 
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tokens' AND column_name = 'sort_order') THEN
+    ALTER TABLE tokens ADD COLUMN sort_order INTEGER DEFAULT 0;
+  END IF;
+END $$;

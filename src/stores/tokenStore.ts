@@ -27,6 +27,7 @@ declare interface TokenData {
   upgradedToPermanent?: boolean; // 是否升级为长期有效
   upgradedAt?: string; // 升级时间
   updatedAt?: string; // 更新时间
+  sortOrder?: number; // 排序顺序
 }
 
 declare interface WebSocketConnection {
@@ -1472,6 +1473,7 @@ export const useTokenStore = defineStore("tokens", () => {
               sourceUrl: token.source_url,
               avatar: token.avatar,
               isActive: token.is_active,
+              sortOrder: token.sort_order,
               createdAt: token.created_at,
               updatedAt: token.updated_at
             });

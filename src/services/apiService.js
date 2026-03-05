@@ -107,6 +107,20 @@ class ApiService {
     }
   }
 
+  async updateTokensOrder(orders) {
+    if (!this.shouldUseBackend()) {
+      return { success: true, message: '本地模式，排序已更新' };
+    }
+
+    try {
+      const response = await apiClient.post('/api/tokens/update-order', { orders });
+      return response.data;
+    } catch (error) {
+      console.error('批量更新Token排序失败:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
   // 任务相关 API
   async getTasks() {
     if (!this.shouldUseBackend()) {

@@ -18,6 +18,7 @@ class TokenService {
       const { data, error } = await supabase
         .from('tokens')
         .select('*')
+        .order('sort_order', { ascending: true })
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -60,6 +61,15 @@ class TokenService {
    */
   async createToken(tokenData) {
     try {
+      // 获取当前最大的sort_order
+      const { data: maxOrderData } = await supabase
+        .from('tokens')
+        .select('sort_order')
+        .order('sort_order', { ascending: false })
+        .limit(1);
+      
+      const maxOrder = maxOrderData && maxOrderData.length > 0 ? (maxOrderData[0].sort_order || 0) : 0;
+
       const token = {
         id: uuidv4(),
         name: tokenData.name,
@@ -71,6 +81,7 @@ class TokenService {
         source_url: tokenData.source_url || null,
         avatar: tokenData.avatar || '',
         is_active: tokenData.is_active !== false,
+        sort_order: tokenData.sort_order !== undefined ? tokenData.sort_order : maxOrder + 1,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
@@ -188,6 +199,7 @@ class TokenService {
         .from('tokens')
         .select('*')
         .eq('is_active', true)
+        .order('sort_order', { ascending: true })
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -198,6 +210,36 @@ class TokenService {
       return data;
     } catch (error) {
       logger.error(`获取激活Token异常: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * 批量更新Token排序
+   */
+  async updateTokensOrder(tokenOrders) {
+    try {
+      // tokenOrders 是一个数组，格式: [{ id: 'token-id', sort_order: 1 }, ...]
+      const updatePromises = tokenOrders.map(item => 
+        supabase
+          .from('tokens')
+          .update({ sort_order: item.sort_order, updated_at: new Date().toISOString() })
+          .eq('id', item.id)
+      );
+
+      const results = await Promise.all(updatePromises);
+      
+      // 检查是否有错误
+      const errors = results.filter(r => r.error);
+      if (errors.length > 0) {
+        logger.error(`批量更新Token排序部分失败: ${errors.map(e => e.error.message).join(', ')}`);
+        throw new Error('部分更新失败');
+      }
+
+      logger.info(`批量更新Token排序成功: ${tokenOrders.length} 个Token`);
+      return true;
+    } catch (error) {
+      logger.error(`批量更新Token排序异常: ${error.message}`);
       throw error;
     }
   }
