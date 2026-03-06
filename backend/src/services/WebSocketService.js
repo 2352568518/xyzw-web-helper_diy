@@ -86,8 +86,8 @@ class WebSocketClient {
       this._processQueueLoop();
       this._updateConnectionStatus('connected');
       
-      // 发送初始化消息获取角色信息
-      this._sendInitMessage();
+      // 不再自动发送初始化消息，让任务执行时自己发送
+      // this._sendInitMessage();
     };
 
     this.socket.onmessage = (event) => {

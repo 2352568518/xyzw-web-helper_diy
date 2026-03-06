@@ -164,27 +164,35 @@
     <div class="tasks-section">
       <div class="section-header">
         <h2>任务列表</h2>
-        <div class="view-toggle">
-          <n-button-group size="small">
-            <n-button 
-              :type="viewMode === 'card' ? 'primary' : 'default'"
-              @click="viewMode = 'card'"
-            >
-              <template #icon>
-                <n-icon><GridOutline /></n-icon>
-              </template>
-              卡片
-            </n-button>
-            <n-button 
-              :type="viewMode === 'list' ? 'primary' : 'default'"
-              @click="viewMode = 'list'"
-            >
-              <template #icon>
-                <n-icon><ListOutline /></n-icon>
-              </template>
-              列表
-            </n-button>
-          </n-button-group>
+        <div class="section-actions">
+          <n-button type="primary" size="small" @click="openNewTaskModal">
+            <template #icon>
+              <n-icon><TimeOutline /></n-icon>
+            </template>
+            新增任务
+          </n-button>
+          <div class="view-toggle">
+            <n-button-group size="small">
+              <n-button 
+                :type="viewMode === 'card' ? 'primary' : 'default'"
+                @click="viewMode = 'card'"
+              >
+                <template #icon>
+                  <n-icon><GridOutline /></n-icon>
+                </template>
+                卡片
+              </n-button>
+              <n-button 
+                :type="viewMode === 'list' ? 'primary' : 'default'"
+                @click="viewMode = 'list'"
+              >
+                <template #icon>
+                  <n-icon><ListOutline /></n-icon>
+                </template>
+                列表
+              </n-button>
+            </n-button-group>
+          </div>
         </div>
       </div>
       
@@ -269,9 +277,16 @@
               </n-button>
               <n-button 
                 size="small" 
-                @click="showTaskDetail(task)"
+                @click="openEditTaskModal(task)"
               >
-                查看详情
+                编辑
+              </n-button>
+              <n-button 
+                size="small" 
+                type="error"
+                @click="deleteTask(task)"
+              >
+                删除
               </n-button>
             </div>
           </div>
@@ -570,14 +585,77 @@
         />
       </n-drawer-content>
     </n-drawer>
+
+    <!-- 任务编辑模态框 -->
+    <n-modal
+      v-model:show="showTaskModal"
+      preset="card"
+      :title="editingTask ? '编辑定时任务' : '新增定时任务'"
+      style="width: 90%; max-width: 600px"
+    >
+      <n-form label-placement="left" label-width="80">
+        <n-form-item label="任务名称" required>
+          <n-input v-model:value="taskForm.name" placeholder="请输入任务名称" />
+        </n-form-item>
+        
+        <n-form-item label="运行类型">
+          <n-radio-group v-model:value="taskForm.runType">
+            <n-radio value="daily">每天固定时间</n-radio>
+            <n-radio value="cron">Cron表达式</n-radio>
+          </n-radio-group>
+        </n-form-item>
+        
+        <n-form-item v-if="taskForm.runType === 'daily'" label="运行时间" required>
+          <n-time-picker v-model:value="taskForm.runTime" format="HH:mm" />
+        </n-form-item>
+        
+        <n-form-item v-if="taskForm.runType === 'cron'" label="Cron表达式" required>
+          <n-input v-model:value="taskForm.cronExpression" placeholder="例如: 0 8 * * *" />
+        </n-form-item>
+        
+        <n-form-item label="选择账号" required>
+          <n-select
+            v-model:value="taskForm.selectedTokens"
+            multiple
+            :options="tokenOptions"
+            placeholder="请选择账号"
+            max-tag-count="5"
+          />
+        </n-form-item>
+        
+        <n-form-item label="选择任务" required>
+          <n-select
+            v-model:value="taskForm.selectedTasks"
+            multiple
+            :options="availableTaskOptions"
+            placeholder="请选择要执行的任务"
+            max-tag-count="5"
+          />
+        </n-form-item>
+        
+        <n-form-item label="启用状态">
+          <n-switch v-model:value="taskForm.isActive" />
+        </n-form-item>
+      </n-form>
+      
+      <template #footer>
+        <n-space justify="end">
+          <n-button @click="showTaskModal = false">取消</n-button>
+          <n-button type="primary" @click="saveTask" :loading="savingTask">
+            保存
+          </n-button>
+        </n-space>
+      </template>
+    </n-modal>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, h } from 'vue';
+import { ref, computed, onMounted, onUnmounted, h, reactive } from 'vue';
 import { useMessage, useDialog, NButton, NTag } from 'naive-ui';
 import apiService from '@/services/apiService';
 import { useTokenStore } from '@/stores/tokenStore';
+import { availableTasks } from '@/utils/batch/constants';
 import {
   Refresh,
   List,
@@ -623,6 +701,20 @@ const runningTasks = ref({});
 const retryingExecutions = ref({});
 const viewMode = ref('list'); // 'card' or 'list'，默认列表
 
+// 任务编辑相关
+const showTaskModal = ref(false);
+const editingTask = ref(null);
+const savingTask = ref(false);
+const taskForm = reactive({
+  name: '',
+  runType: 'daily',
+  runTime: null,
+  cronExpression: '',
+  selectedTokens: [],
+  selectedTasks: [],
+  isActive: true
+});
+
 let refreshTimer = null;
 let executionOffset = 0;
 const executionLimit = 20;
@@ -639,6 +731,21 @@ const taskOptions = computed(() => {
     { label: '全部任务', value: null },
     ...tasks.value.map(t => ({ label: t.name, value: t.id }))
   ];
+});
+
+const tokenOptions = computed(() => {
+  const tokens = tokenStore.tokens || [];
+  return tokens.map(t => ({
+    label: t.name || t.id,
+    value: t.id
+  }));
+});
+
+const availableTaskOptions = computed(() => {
+  return availableTasks.map(t => ({
+    label: t.label,
+    value: t.value
+  }));
 });
 
 const taskColumns = [
@@ -679,7 +786,7 @@ const taskColumns = [
   {
     title: '操作',
     key: 'actions',
-    width: 200,
+    width: 250,
     render: (row) => h('div', { class: 'task-actions-cell' }, [
       h(NButton, {
         size: 'small',
@@ -694,8 +801,13 @@ const taskColumns = [
       }, () => '执行'),
       h(NButton, {
         size: 'small',
-        onClick: () => showTaskDetail(row)
-      }, () => '详情')
+        onClick: () => openEditTaskModal(row)
+      }, () => '编辑'),
+      h(NButton, {
+        size: 'small',
+        type: 'error',
+        onClick: () => deleteTask(row)
+      }, () => '删除')
     ])
   }
 ];
@@ -976,6 +1088,145 @@ const toggleTaskStatus = async (task) => {
       } catch (error) {
         console.error('更新任务状态失败:', error);
         message.error('操作失败');
+      }
+    }
+  });
+};
+
+// 编辑任务相关函数
+const openEditTaskModal = (task) => {
+  editingTask.value = task;
+  
+  // 解析运行时间
+  let runTime = null;
+  if (task.run_type === 'daily' && task.run_time) {
+    const [hours, minutes] = task.run_time.split(':').map(Number);
+    const date = new Date();
+    date.setHours(hours, minutes, 0, 0);
+    runTime = date.getTime();
+  }
+  
+  // 填充表单
+  taskForm.name = task.name;
+  taskForm.runType = task.run_type || 'daily';
+  taskForm.runTime = runTime;
+  taskForm.cronExpression = task.cron_expression || '';
+  taskForm.selectedTokens = task.token_ids || [];
+  taskForm.selectedTasks = task.settings?.selectedTasks || [];
+  taskForm.isActive = task.is_active;
+  
+  showTaskModal.value = true;
+};
+
+const openNewTaskModal = () => {
+  editingTask.value = null;
+  
+  // 重置表单
+  taskForm.name = '';
+  taskForm.runType = 'daily';
+  taskForm.runTime = null;
+  taskForm.cronExpression = '';
+  taskForm.selectedTokens = [];
+  taskForm.selectedTasks = [];
+  taskForm.isActive = true;
+  
+  showTaskModal.value = true;
+};
+
+const saveTask = async () => {
+  if (!taskForm.name) {
+    message.warning('请输入任务名称');
+    return;
+  }
+  
+  if (taskForm.runType === 'daily' && !taskForm.runTime) {
+    message.warning('请选择运行时间');
+    return;
+  }
+  
+  if (taskForm.runType === 'cron' && !taskForm.cronExpression) {
+    message.warning('请输入Cron表达式');
+    return;
+  }
+  
+  if (taskForm.selectedTokens.length === 0) {
+    message.warning('请选择至少一个账号');
+    return;
+  }
+  
+  if (taskForm.selectedTasks.length === 0) {
+    message.warning('请选择至少一个任务');
+    return;
+  }
+  
+  savingTask.value = true;
+  
+  try {
+    // 格式化运行时间
+    let formattedRunTime = null;
+    if (taskForm.runType === 'daily' && taskForm.runTime) {
+      const time = new Date(taskForm.runTime);
+      formattedRunTime = time.toLocaleTimeString('zh-CN', {
+        hour12: false,
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
+    
+    const taskData = {
+      name: taskForm.name,
+      type: 'daily',
+      run_type: taskForm.runType,
+      run_time: formattedRunTime,
+      cron_expression: taskForm.cronExpression || null,
+      token_ids: taskForm.selectedTokens,
+      is_active: taskForm.isActive,
+      settings: {
+        selectedTasks: taskForm.selectedTasks
+      }
+    };
+    
+    let res;
+    if (editingTask.value) {
+      res = await apiService.updateTask(editingTask.value.id, taskData);
+    } else {
+      res = await apiService.createTask(taskData);
+    }
+    
+    if (res?.success) {
+      message.success(editingTask.value ? '任务已更新' : '任务已创建');
+      showTaskModal.value = false;
+      loadTasks();
+    } else {
+      message.error(res?.error || '保存失败');
+    }
+  } catch (error) {
+    console.error('保存任务失败:', error);
+    message.error('保存任务失败');
+  } finally {
+    savingTask.value = false;
+  }
+};
+
+const deleteTask = async (task) => {
+  dialog.warning({
+    title: '删除任务',
+    content: `确定要删除任务 "${task.name}" 吗？此操作不可恢复。`,
+    positiveText: '删除',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      try {
+        const res = await apiService.deleteTask(task.id);
+        
+        if (res?.success) {
+          message.success('任务已删除');
+          loadTasks();
+        } else {
+          message.error('删除失败');
+        }
+      } catch (error) {
+        console.error('删除任务失败:', error);
+        message.error('删除失败');
       }
     }
   });
@@ -1668,6 +1919,12 @@ onUnmounted(() => {
 
   h2 {
     margin: 0;
+  }
+
+  .section-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
   }
 
   .filters {

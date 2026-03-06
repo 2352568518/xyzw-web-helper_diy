@@ -991,14 +991,29 @@ class TaskExecutor {
     };
     
     try {
+      // 等待连接稳定
+      await this.delay(1000);
+      
       // 获取角色信息
       this.addStep('获取角色信息');
-      const roleInfoResp = await this.send('role_getroleinfo');
-      this.roleData = roleInfoResp?.role;
+      const roleInfoResp = await this.send('role_getroleinfo', {
+        clientVersion: '2.10.3-f10a39eaa0c409f4-wx',
+        inviteUid: 0,
+        platform: 'hortor',
+        platformExt: 'mix',
+        scene: ''
+      }, 15000);
       
-      if (!this.roleData) {
-        throw new Error('角色数据不存在');
+      logger.info(`角色信息响应: ${JSON.stringify(roleInfoResp).substring(0, 500)}`);
+      
+      // 尝试从不同位置获取角色数据
+      this.roleData = roleInfoResp?.role || roleInfoResp?.body?.role || roleInfoResp;
+      
+      if (!this.roleData || typeof this.roleData !== 'object') {
+        throw new Error('角色数据不存在或格式错误');
       }
+      
+      this.addStep(`角色名称: ${this.roleData?.name || '未知'}`);
       
       const completedTasks = this.roleData.dailyTask?.complete ?? {};
       const statistics = this.roleData.statistics ?? {};
