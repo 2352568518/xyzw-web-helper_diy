@@ -332,7 +332,7 @@ class ApiService {
     }
 
     try {
-      const response = await apiClient.delete('/api/tasks/executions');
+      const response = await apiClient.delete('/api/tasks/clear-executions');
       return response.data;
     } catch (error) {
       console.error('清空任务执行记录失败:', error);
