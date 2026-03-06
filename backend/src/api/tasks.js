@@ -92,7 +92,10 @@ router.delete('/:id', async (req, res) => {
 router.post('/:id/run', async (req, res) => {
   try {
     const task = await TaskService.getTaskById(req.params.id);
-    await TaskService.executeTask(task);
+    // 异步执行任务，不等待完成
+    TaskService.executeTask(task).catch(error => {
+      logger.error(`后台执行任务失败: ${error.message}`);
+    });
     res.json({ success: true, message: '任务开始执行' });
   } catch (error) {
     logger.error(`执行任务失败: ${error.message}`);
