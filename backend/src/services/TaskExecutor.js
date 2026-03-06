@@ -125,6 +125,10 @@ class TaskExecutor {
           await this.legionStoreBuyGoods();
           break;
 
+        case 'legionStoreBuySkinCoins':
+          await this.legionStoreBuySkinCoins();
+          break;
+
         // 珍宝阁
         case 'collection_claimfreereward':
           await this.collectionClaimFreeReward();
@@ -708,6 +712,35 @@ class TaskExecutor {
     }
   }
 
+  async legionStoreBuySkinCoins() {
+    this.addStep('购买俱乐部5皮肤币');
+    try {
+      for (let i = 0; i < 5; i++) {
+        try {
+          const result = await this.send('legion_storebuygoods', { goodsId: 1, number: 1 });
+          await this.delay(300);
+          if (result && result.error) {
+            if (result.error.includes('俱乐部商品购买数量超出上限')) {
+              this.addStep('本周已购买过皮肤币，跳过');
+              return;
+            } else if (result.error.includes('物品不存在')) {
+              this.addStep('盐锭不足或未加入军团，购买失败');
+              return;
+            } else {
+              this.addStep(`购买失败: ${result.error}`);
+              return;
+            }
+          }
+        } catch (err) {
+          // 忽略单次购买失败
+        }
+      }
+      this.addStep('购买成功，获得皮肤币');
+    } catch (err) {
+      this.addStep(`购买失败: ${err.message}`);
+    }
+  }
+
   // ==================== 珍宝阁 ====================
 
   async collectionClaimFreeReward() {
@@ -918,7 +951,279 @@ class TaskExecutor {
    */
   async startBatch() {
     this.addStep('开始批量任务');
-    this.addStep('批量任务初始化完成');
+    
+    const settings = this.taskSettings || {};
+    logger.info(`批量任务配置: ${JSON.stringify(settings)}`);
+    this.addStep(`配置: openBox=${settings.openBox}, claimBottle=${settings.claimBottle}, arenaEnable=${settings.arenaEnable}, bossTimes=${settings.bossTimes}`);
+    
+    // 辅助函数：检查任务是否完成
+    const isTaskCompleted = (taskId) => {
+      return this.roleData?.dailyTask?.complete?.[taskId] === -1;
+    };
+    
+    // 辅助函数：检查是否今天可用
+    const isTodayAvailable = (timestamp) => {
+      if (!timestamp) return true;
+      const today = new Date().toDateString();
+      const recordDate = new Date(timestamp * 1000).toDateString();
+      return today !== recordDate;
+    };
+    
+    // 辅助函数：获取今日BOSS ID
+    const getTodayBossId = () => {
+      const DAY_BOSS_MAP = [9904, 9905, 9901, 9902, 9903, 9904, 9905];
+      const dayOfWeek = new Date().getDay();
+      return DAY_BOSS_MAP[dayOfWeek];
+    };
+    
+    // 辅助函数：选择竞技场目标
+    const pickArenaTargetId = (targets) => {
+      if (!targets) return null;
+      if (Array.isArray(targets)) {
+        const candidate = targets[0];
+        return candidate?.roleId || candidate?.id || candidate?.targetId;
+      }
+      const candidate = targets?.rankList?.[0] || targets?.roleList?.[0] || targets?.targets?.[0];
+      if (candidate) {
+        return candidate.roleId || candidate.id || candidate.targetId;
+      }
+      return targets?.roleId || targets?.id || targets?.targetId;
+    };
+    
+    try {
+      // 获取角色信息
+      this.addStep('获取角色信息');
+      const roleInfoResp = await this.send('role_getroleinfo');
+      this.roleData = roleInfoResp?.role;
+      
+      if (!this.roleData) {
+        throw new Error('角色数据不存在');
+      }
+      
+      const completedTasks = this.roleData.dailyTask?.complete ?? {};
+      const statistics = this.roleData.statistics ?? {};
+      const statisticsTime = this.roleData.statisticsTime ?? {};
+      
+      // 读取当前阵容
+      let originalFormation = null;
+      try {
+        const teamInfo = await this.send('presetteam_getinfo');
+        originalFormation = teamInfo?.presetTeamInfo?.useTeamId;
+        this.addStep(`当前阵容: ${originalFormation}`);
+      } catch (e) {
+        this.addStep(`读取当前阵容失败: ${e.message}`);
+      }
+      
+      // 1. 基础任务
+      if (!isTaskCompleted(2)) {
+        this.addStep('分享一次游戏');
+        await this.send('system_mysharecallback', { isSkipShareCard: true, type: 2 });
+        await this.delay(500);
+      }
+      
+      if (!isTaskCompleted(3)) {
+        this.addStep('赠送好友金币');
+        await this.send('friend_batch');
+        await this.delay(500);
+      }
+      
+      if (!isTaskCompleted(4)) {
+        this.addStep('免费招募');
+        await this.send('hero_recruit', { recruitType: 3, recruitNumber: 1 });
+        await this.delay(500);
+      }
+      
+      if (settings.payRecruit !== false) {
+        this.addStep('付费招募');
+        await this.send('hero_recruit', { recruitType: 1, recruitNumber: 1 });
+        await this.delay(500);
+      }
+      
+      if (!isTaskCompleted(6) && isTodayAvailable(statisticsTime["buy:gold"])) {
+        for (let i = 0; i < 3; i++) {
+          this.addStep(`免费点金 ${i + 1}/3`);
+          await this.send('system_buygold', { buyNum: 1 });
+          await this.delay(500);
+        }
+      }
+      
+      if (!isTaskCompleted(5) && settings.claimHangUp !== false) {
+        this.addStep('领取挂机奖励');
+        await this.send('system_claimhangupreward');
+        await this.delay(500);
+        
+        for (let i = 0; i < 4; i++) {
+          this.addStep(`挂机加钟 ${i + 1}/4`);
+          await this.send('system_mysharecallback', { isSkipShareCard: true, type: 2 });
+          await this.delay(500);
+        }
+      }
+      
+      if (!isTaskCompleted(7) && settings.openBox !== false) {
+        this.addStep('开启木质宝箱');
+        await this.send('item_openbox', { itemId: 2001, number: 10 });
+        await this.delay(500);
+      }
+      
+      // 盐罐
+      this.addStep('停止盐罐计时');
+      await this.send('bottlehelper_stop');
+      await this.delay(500);
+      
+      this.addStep('开始盐罐计时');
+      await this.send('bottlehelper_start');
+      await this.delay(500);
+      
+      if (!isTaskCompleted(14) && settings.claimBottle !== false) {
+        this.addStep('领取盐罐奖励');
+        await this.send('bottlehelper_claim');
+        await this.delay(500);
+      }
+      
+      // 2. 竞技场
+      if (!isTaskCompleted(13) && settings.arenaEnable !== false) {
+        const hour = new Date().getHours();
+        if (hour >= 6 && hour <= 22) {
+          // 切换阵容
+          const arenaFormation = settings.arenaFormation || 1;
+          const teamInfo = await this.send('presetteam_getinfo');
+          const currentFormation = teamInfo?.presetTeamInfo?.useTeamId;
+          if (currentFormation !== arenaFormation) {
+            this.addStep(`切换到阵容${arenaFormation}`);
+            await this.send('presetteam_saveteam', { teamId: arenaFormation });
+            await this.delay(500);
+          }
+          
+          this.addStep('开始竞技场');
+          await this.send('arena_startarea');
+          await this.delay(500);
+          
+          for (let i = 1; i <= 3; i++) {
+            this.addStep(`竞技场战斗 ${i}/3`);
+            try {
+              const targets = await this.send('arena_getareatarget');
+              const targetId = pickArenaTargetId(targets);
+              if (targetId) {
+                await this.send('fight_startareaarena', { targetId }, 10000);
+                await this.delay(1000);
+              }
+            } catch (e) {
+              this.addStep(`竞技场战斗${i}失败: ${e.message}`);
+            }
+          }
+        } else {
+          this.addStep('当前时间不在6-22点，跳过竞技场');
+        }
+      }
+      
+      // 3. BOSS
+      if (settings.bossTimes > 0) {
+        let alreadyLegionBoss = statistics["legion:boss"] ?? 0;
+        if (isTodayAvailable(statisticsTime["legion:boss"])) {
+          alreadyLegionBoss = 1;
+        }
+        const remainingLegionBoss = Math.max(settings.bossTimes - alreadyLegionBoss, 0);
+        
+        if (remainingLegionBoss > 0) {
+          const bossFormation = settings.bossFormation || 1;
+          const teamInfo = await this.send('presetteam_getinfo');
+          const currentFormation = teamInfo?.presetTeamInfo?.useTeamId;
+          if (currentFormation !== bossFormation) {
+            this.addStep(`切换到BOSS阵容${bossFormation}`);
+            await this.send('presetteam_saveteam', { teamId: bossFormation });
+            await this.delay(500);
+          }
+          
+          for (let i = 0; i < remainingLegionBoss; i++) {
+            this.addStep(`军团BOSS ${i + 1}/${remainingLegionBoss}`);
+            await this.send('fight_startlegionboss', {}, 12000);
+            await this.delay(1000);
+          }
+        }
+        
+        // 每日BOSS
+        const todayBossId = getTodayBossId();
+        for (let i = 0; i < 3; i++) {
+          this.addStep(`每日BOSS ${i + 1}/3`);
+          await this.send('fight_startboss', { bossId: todayBossId }, 12000);
+          await this.delay(1000);
+        }
+      }
+      
+      // 4. 固定奖励
+      const fixedRewards = [
+        { name: '福利签到', cmd: 'system_signinreward' },
+        { name: '俱乐部', cmd: 'legion_signin' },
+        { name: '领取每日礼包', cmd: 'discount_claimreward' },
+        { name: '领取每日免费奖励', cmd: 'collection_claimfreereward' },
+        { name: '领取免费礼包', cmd: 'card_claimreward' },
+        { name: '领取永久卡礼包', cmd: 'card_claimreward', params: { cardId: 4003 } }
+      ];
+      
+      if (settings.claimEmail !== false) {
+        fixedRewards.push({ name: '领取邮件奖励', cmd: 'mail_claimallattachment' });
+      }
+      
+      for (const reward of fixedRewards) {
+        this.addStep(reward.name);
+        await this.send(reward.cmd, reward.params || {});
+        await this.delay(500);
+      }
+      
+      // 珍宝阁
+      this.addStep('开始领取珍宝阁礼包');
+      await this.send('collection_goodslist');
+      await this.delay(500);
+      
+      this.addStep('领取珍宝阁免费礼包');
+      await this.send('collection_claimfreereward');
+      await this.delay(500);
+      
+      // 5. 免费活动
+      if (isTodayAvailable(statistics["artifact:normal:lottery:time"])) {
+        for (let i = 0; i < 3; i++) {
+          this.addStep(`免费钓鱼 ${i + 1}/3`);
+          await this.send('artifact_lottery', { lotteryNumber: 1, newFree: true, type: 1 });
+          await this.delay(500);
+        }
+      }
+      
+      // 灯神免费扫荡
+      const kingdoms = ['魏国', '蜀国', '吴国', '群雄'];
+      for (let gid = 1; gid <= 4; gid++) {
+        if (isTodayAvailable(statisticsTime[`genie:daily:free:${gid}`])) {
+          this.addStep(`${kingdoms[gid - 1]}灯神免费扫荡`);
+          await this.send('genie_sweep', { genieId: gid });
+          await this.delay(500);
+        }
+      }
+      
+      // 领取免费扫荡卷
+      for (let i = 0; i < 3; i++) {
+        this.addStep(`领取免费扫荡卷 ${i + 1}/3`);
+        await this.send('genie_buysweep');
+        await this.delay(500);
+      }
+      
+      // 6. 黑市
+      if (!isTaskCompleted(12) && settings.blackMarketPurchase !== false) {
+        this.addStep('黑市购买1次物品');
+        await this.send('store_purchase', { goodsId: 1 });
+        await this.delay(500);
+      }
+      
+      // 恢复原阵容
+      if (originalFormation) {
+        this.addStep(`恢复原阵容: ${originalFormation}`);
+        await this.send('presetteam_saveteam', { teamId: originalFormation });
+      }
+      
+      this.addStep('批量任务完成');
+      
+    } catch (error) {
+      this.addStep(`批量任务执行失败: ${error.message}`);
+      throw error;
+    }
   }
 
   /**
