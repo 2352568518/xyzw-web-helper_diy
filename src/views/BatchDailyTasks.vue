@@ -5316,6 +5316,8 @@ const createTaskDeps = () => ({
   calculateMonthProgress,
   // 配置加载函数
   loadSettings,
+  // API服务
+  apiService,
 });
 
 // 初始化任务模块
@@ -5422,6 +5424,13 @@ const startBatch = async () => {
           message: `=== ${token.name} 执行完成 ===`,
           type: "success",
         });
+        
+        // 创建手动执行记录
+        try {
+          await apiService.createManualExecution(tokenId, 'completed', { steps: [] }, '批量日常任务');
+        } catch (e) {
+          console.error('创建执行记录失败:', e);
+        }
       } catch (error) {
         console.error(error);
         if (retryCount < MAX_RETRIES && !shouldStop.value) {
@@ -5440,6 +5449,13 @@ const startBatch = async () => {
             message: `${token.name} 执行失败: ${error.message}`,
             type: "error",
           });
+          
+          // 创建失败执行记录
+          try {
+            await apiService.createManualExecution(tokenId, 'failed', { error: error.message }, '批量日常任务');
+          } catch (e) {
+            console.error('创建执行记录失败:', e);
+          }
         }
       } finally {
         // 完成后关闭连接并释放槽位

@@ -761,6 +761,92 @@ class TaskService {
       throw error;
     }
   }
+
+  /**
+   * 获取或创建手动执行任务
+   */
+  async getOrCreateManualTask() {
+    const MANUAL_TASK_ID = '00000000-0000-0000-0000-000000000001';
+    
+    try {
+      // 先尝试获取
+      const { data: existingTask, error: getError } = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('id', MANUAL_TASK_ID)
+        .single();
+
+      if (existingTask) {
+        return existingTask;
+      }
+
+      // 不存在则创建
+      const { data: newTask, error: createError } = await supabase
+        .from('tasks')
+        .insert({
+          id: MANUAL_TASK_ID,
+          name: '手动执行',
+          type: 'manual',
+          is_active: false,
+          settings: {},
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (createError) {
+        logger.error(`创建手动执行任务失败: ${createError.message}`);
+        throw createError;
+      }
+
+      return newTask;
+    } catch (error) {
+      logger.error(`获取或创建手动执行任务异常: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * 创建手动执行记录（前端浏览器执行批量任务时使用）
+   */
+  async createManualExecution(tokenId, status, result, taskName) {
+    try {
+      // 获取或创建手动执行任务
+      const manualTask = await this.getOrCreateManualTask();
+      
+      const executionId = uuidv4();
+      const now = new Date().toISOString();
+      
+      const { data, error } = await supabase
+        .from('task_executions')
+        .insert({
+          id: executionId,
+          task_id: manualTask.id,
+          token_id: tokenId,
+          status: status || 'completed',
+          result: {
+            ...result,
+            taskName: taskName || '手动执行'
+          },
+          started_at: now,
+          completed_at: status === 'completed' ? now : null
+        })
+        .select()
+        .single();
+
+      if (error) {
+        logger.error(`创建手动执行记录失败: ${error.message}`);
+        throw error;
+      }
+
+      logger.info(`创建手动执行记录成功: ${executionId}`);
+      return data;
+    } catch (error) {
+      logger.error(`创建手动执行记录异常: ${error.message}`);
+      throw error;
+    }
+  }
 }
 
 // 导出单例

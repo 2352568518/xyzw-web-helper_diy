@@ -25,6 +25,7 @@ export function createTasksTower(deps) {
     currentRunningTokenId,
     currentSettings,
     loadSettings,
+    apiService,
   } = deps;
 
   /**

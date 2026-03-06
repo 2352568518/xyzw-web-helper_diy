@@ -145,4 +145,18 @@ router.get('/:id/executions', async (req, res) => {
   }
 });
 
+/**
+ * 创建手动执行记录（前端浏览器执行批量任务时使用）
+ */
+router.post('/manual-execution', async (req, res) => {
+  try {
+    const { tokenId, status, result, taskName } = req.body;
+    const execution = await TaskService.createManualExecution(tokenId, status, result, taskName);
+    res.json({ success: true, data: execution });
+  } catch (error) {
+    logger.error(`创建手动执行记录失败: ${error.message}`);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 export default router;

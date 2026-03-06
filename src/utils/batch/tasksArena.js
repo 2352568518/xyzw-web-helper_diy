@@ -32,6 +32,7 @@ export function createTasksArena(deps) {
     calculateMonthProgress,
     delayConfig,
     loadSettings,
+    apiService,
   } = deps;
 
   /**
@@ -191,6 +192,15 @@ export function createTasksArena(deps) {
           message: `=== ${token.name} 竞技场战斗已完成 ===`,
           type: "success",
         });
+        
+        // 创建手动执行记录
+        if (apiService) {
+          try {
+            await apiService.createManualExecution(tokenId, 'completed', { steps: [] }, '一键竞技场');
+          } catch (e) {
+            console.error('创建执行记录失败:', e);
+          }
+        }
       } catch (error) {
         console.error(error);
         tokenStatus.value[tokenId] = "failed";
@@ -199,6 +209,15 @@ export function createTasksArena(deps) {
           message: `${token.name} 一键竞技场战斗失败: ${error.message || "未知错误"}`,
           type: "error",
         });
+        
+        // 创建失败执行记录
+        if (apiService) {
+          try {
+            await apiService.createManualExecution(tokenId, 'failed', { error: error.message }, '一键竞技场');
+          } catch (e) {
+            console.error('创建执行记录失败:', e);
+          }
+        }
       } finally {
         tokenStore.closeWebSocketConnection(tokenId);
         releaseConnectionSlot();

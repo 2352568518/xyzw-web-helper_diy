@@ -340,6 +340,25 @@ class ApiService {
     }
   }
 
+  async createManualExecution(tokenId, status, result, taskName) {
+    if (!this.shouldUseBackend()) {
+      return { success: true };
+    }
+
+    try {
+      const response = await apiClient.post('/api/tasks/manual-execution', {
+        tokenId,
+        status,
+        result,
+        taskName
+      });
+      return response.data;
+    } catch (error) {
+      console.error('创建手动执行记录失败:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
   // 健康检查
   async healthCheck() {
     if (!this.shouldUseBackend()) {
