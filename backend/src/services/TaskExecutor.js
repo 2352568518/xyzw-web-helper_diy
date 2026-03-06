@@ -253,6 +253,18 @@ class TaskExecutor {
 
   async climbTower() {
     this.addStep('获取爬塔信息');
+    
+    // 切换阵容
+    const towerFormation = this.taskSettings.towerFormation;
+    if (towerFormation) {
+      const teamInfo = await this.send('presetteam_getinfo');
+      const currentFormation = teamInfo?.presetTeamInfo?.useTeamId;
+      if (currentFormation !== towerFormation) {
+        this.addStep(`切换到阵容${towerFormation}`);
+        await this.send('presetteam_saveteam', { teamId: towerFormation });
+      }
+    }
+    
     const info = await this.send('tower_getinfo');
     let energy = info?.tower?.energy || 0;
     
@@ -268,9 +280,14 @@ class TaskExecutor {
         count++;
         energy--;
         await this.delay(1000);
+        
+        // 每5次刷新体力
+        if (count % 5 === 0) {
+          const roleInfo = await this.send('role_getroleinfo');
+          energy = roleInfo?.role?.tower?.energy || 0;
+        }
       } catch (err) {
         if (err.message && err.message.includes('1500040')) {
-          // 上座塔奖励未领取，尝试领取
           const towerId = info?.tower?.id || 0;
           const rewardFloor = Math.floor(towerId / 10);
           if (rewardFloor > 0) {
@@ -447,32 +464,221 @@ class TaskExecutor {
     }
   }
 
+  // ==================== 辅助函数 ====================
+
+  /**
+   * 获取品质标签
+   */
+  gradeLabel(color) {
+    const map = {
+      1: '绿·普通',
+      2: '蓝·稀有',
+      3: '紫·史诗',
+      4: '橙·传说',
+      5: '红·神话',
+      6: '金·传奇'
+    };
+    return map[color] || '未知';
+  }
+
+  /**
+   * 大奖配置
+   */
+  getBigPrizes() {
+    return [
+      { type: 3, itemId: 3201, value: 10 },
+      { type: 3, itemId: 1001, value: 10 },
+      { type: 3, itemId: 1022, value: 2000 },
+      { type: 2, itemId: 0, value: 2000 },
+      { type: 3, itemId: 1023, value: 5 },
+      { type: 3, itemId: 1022, value: 2500 },
+      { type: 3, itemId: 1001, value: 12 }
+    ];
+  }
+
+  /**
+   * 判断是否是大奖
+   */
+  isBigPrize(rewards) {
+    if (!Array.isArray(rewards)) return false;
+    return this.getBigPrizes().some(p =>
+      rewards.find(r =>
+        r.type === p.type &&
+        r.itemId === p.itemId &&
+        Number(r.value || 0) >= p.value
+      )
+    );
+  }
+
+  /**
+   * 计算赛车刷新票数量
+   */
+  countRacingRefreshTickets(rewards) {
+    if (!Array.isArray(rewards)) return 0;
+    return rewards.reduce(
+      (acc, r) => acc + (r.type === 3 && r.itemId === 35002 ? Number(r.value || 0) : 0),
+      0
+    );
+  }
+
+  /**
+   * 检查奖励是否满足自定义条件
+   */
+  checkRewardConditions(rewards, conditions, matchAll = false) {
+    if (!Array.isArray(rewards) || !conditions) return false;
+    const { gold, recruit, jade, ticket } = conditions;
+    
+    if (!gold && !recruit && !jade && !ticket) return false;
+
+    let goldCount = 0;
+    let recruitCount = 0;
+    let jadeCount = 0;
+    let ticketCount = 0;
+
+    rewards.forEach(r => {
+      const val = Number(r.value || r.num || r.quantity || r.count || 0);
+      const type = Number(r.type || 0);
+      const itemId = Number(r.itemId || 0);
+
+      if (type === 2) goldCount += val;
+      if (itemId === 1001) recruitCount += val;
+      if (itemId === 1022) jadeCount += val;
+      if (itemId === 35002) ticketCount += val;
+    });
+
+    if (matchAll) {
+      if (gold > 0 && goldCount < gold) return false;
+      if (recruit > 0 && recruitCount < recruit) return false;
+      if (jade > 0 && jadeCount < jade) return false;
+      if (ticket > 0 && ticketCount < ticket) return false;
+      return true;
+    } else {
+      if (gold > 0 && goldCount >= gold) return true;
+      if (recruit > 0 && recruitCount >= recruit) return true;
+      if (jade > 0 && jadeCount >= jade) return true;
+      if (ticket > 0 && ticketCount >= ticket) return true;
+      return false;
+    }
+  }
+
+  /**
+   * 判断是否应该发车
+   */
+  shouldSendCar(car, tickets, minColor = 4, customConditions = {}, useGoldRefreshFallback = false, matchAll = false) {
+    const color = Number(car?.color || 0);
+    const rewards = Array.isArray(car?.rewards) ? car.rewards : [];
+    
+    const customConditionsMet = this.checkRewardConditions(rewards, customConditions, matchAll);
+
+    if (useGoldRefreshFallback) {
+      if (color < minColor) return false;
+      
+      const hasConditions = (customConditions.gold > 0 || customConditions.recruit > 0 || customConditions.jade > 0 || customConditions.ticket > 0);
+      
+      if (hasConditions) return customConditionsMet;
+      
+      return true;
+    }
+
+    if (customConditionsMet) return true;
+
+    const racingTickets = this.countRacingRefreshTickets(rewards);
+    if (tickets >= 6) {
+      return (
+        color >= minColor &&
+        (color >= 5 || racingTickets >= 4 || this.isBigPrize(rewards))
+      );
+    }
+    return color >= minColor || racingTickets >= 2 || this.isBigPrize(rewards);
+  }
+
+  /**
+   * 标准化车辆数据
+   */
+  normalizeCars(res) {
+    const body = res?.body || res;
+    const roleCar = body?.roleCar || body?.rolecar || body || {};
+    
+    const carMap = roleCar.carDataMap || roleCar.cardatamap;
+    if (carMap && typeof carMap === 'object') {
+      return Object.entries(carMap).map(([id, info]) => ({
+        id,
+        ...(info || {})
+      }));
+    }
+
+    let arr = body?.cars || body?.list || body?.data || body?.carList || body?.vehicles || [];
+    if (!Array.isArray(arr) && typeof arr === 'object' && arr !== null) {
+      arr = Object.values(arr);
+    }
+    if (Array.isArray(body) && arr.length === 0) arr = body;
+    
+    return Array.isArray(arr) ? arr : [];
+  }
+
   // ==================== 竞技场任务 ====================
 
   async batcharenafight() {
     this.addStep('获取竞技场信息');
     
-    for (let i = 0; i < 3; i++) {
-      try {
-        this.addStep(`竞技场战斗 ${i + 1}/3`);
-        // 获取对手列表
-        const rivalInfo = await this.send('arena_getrival');
-        if (rivalInfo?.rivals && rivalInfo.rivals.length > 0) {
-          const rivalId = rivalInfo.rivals[0].roleId;
-          await this.send('arena_fight', { rivalId });
-          await this.delay(1000);
+    try {
+      // 切换阵容
+      const arenaFormation = this.taskSettings.arenaFormation;
+      if (arenaFormation) {
+        const teamInfo = await this.send('presetteam_getinfo');
+        const currentFormation = teamInfo?.presetTeamInfo?.useTeamId;
+        if (currentFormation !== arenaFormation) {
+          this.addStep(`切换到阵容${arenaFormation}`);
+          await this.send('presetteam_saveteam', { teamId: arenaFormation });
         }
-      } catch (err) {
-        this.addStep(`战斗失败: ${err.message}`);
       }
+      
+      // 开始竞技场
+      await this.send('arena_startarea');
+      
+      for (let i = 0; i < 3; i++) {
+        try {
+          this.addStep(`竞技场战斗 ${i + 1}/3`);
+          
+          // 获取竞技场目标
+          const targets = await this.send('arena_getareatarget');
+          const targetId = this.pickArenaTargetId(targets);
+          
+          if (!targetId) {
+            this.addStep('未找到可用的竞技场目标');
+            break;
+          }
+          
+          // 开始竞技场战斗
+          await this.send('fight_startareaarena', { targetId });
+          await this.delay(1000);
+        } catch (err) {
+          this.addStep(`战斗失败: ${err.message}`);
+        }
+      }
+    } catch (err) {
+      this.addStep(`竞技场失败: ${err.message}`);
     }
+  }
+
+  /**
+   * 选择竞技场目标
+   */
+  pickArenaTargetId(targets) {
+    if (!targets) return null;
+    
+    const targetList = targets.areaTargetList || targets.targets || targets.list || targets;
+    if (!Array.isArray(targetList) || targetList.length === 0) return null;
+    
+    // 选择第一个目标
+    const target = targetList[0];
+    return target.roleId || target.id || target.targetId;
   }
 
   // ==================== 商店类任务 ====================
 
   async storePurchase() {
     this.addStep('黑市采购');
-    // 黑市商品ID列表
     const blackMarketItems = [1001, 1002, 1003, 1004, 1005];
     
     for (const itemId of blackMarketItems) {
@@ -489,7 +695,6 @@ class TaskExecutor {
   async legionStoreBuyGoods() {
     this.addStep('购买四圣碎片');
     try {
-      // 商品ID 8001-8004 为四圣碎片
       for (let itemId = 8001; itemId <= 8004; itemId++) {
         try {
           await this.send('legion_storebuygoods', { goodsId: itemId, number: 1 });
@@ -554,7 +759,6 @@ class TaskExecutor {
         return;
       }
 
-      // 找最高层数
       let maxLayer = -1;
       let bestGenieId = -1;
       for (let i = 1; i <= 4; i++) {
@@ -626,7 +830,6 @@ class TaskExecutor {
   async batchMergeItems() {
     this.addStep('开始合成');
     try {
-      // 使用自动合成
       await this.send('mergebox_automergeitem', { actType: 1 });
       this.addStep('自动合成完成');
     } catch (err) {
@@ -654,7 +857,6 @@ class TaskExecutor {
       };
       const todayOpenTowers = openTowerMap[todayWeekDay] || [];
 
-      // 找未通关的
       for (const type of todayOpenTowers) {
         const key = `${type}008`;
         if (!levelRewardMap[key]) {
@@ -674,44 +876,25 @@ class TaskExecutor {
   }
 
   /**
-   * 传统活动任务领取
+   * 传统活动任务领取 - 功法残卷
    */
   async batchLegacyClaim() {
-    this.addStep('开始领取传统活动任务');
+    this.addStep('开始领取功法残卷');
     
     try {
-      // 尝试获取传统活动任务列表
-      const taskList = await this.send('legacy_gettasklist');
+      const result = await this.send('legacy_claimhangup', {}, 5000);
       
-      if (taskList && taskList.tasks && Array.isArray(taskList.tasks)) {
-        let claimedCount = 0;
-        
-        for (const task of taskList.tasks) {
-          if (task.status === 2) { // 2表示已完成
-            try {
-              await this.send('legacy_claimpayloadtask', { taskId: task.id });
-              claimedCount++;
-              await this.delay(1000); // 避免请求过快
-            } catch (error) {
-              logger.warn(`领取任务 ${task.id} 失败: ${error.message}`);
-              // 继续处理其他任务
-            }
-          }
-        }
-        
-        this.addStep(`领取了 ${claimedCount} 个传统活动任务奖励`);
+      if (result && result.reward && result.reward.length > 0) {
+        const rewardValue = result.reward[0].value;
+        const totalQuantity = result.role?.items?.[37007]?.quantity || 0;
+        this.addStep(`成功领取功法残卷${rewardValue}，共有${totalQuantity}个`);
       } else {
-        this.addStep('没有可领取的传统活动任务');
+        this.addStep('没有可领取的功法残卷');
       }
     } catch (error) {
-      logger.warn(`传统活动任务领取失败: ${error.message}`);
-      // 降级处理：直接尝试领取
-      try {
-        await this.send('legacy_claimpayloadtask', { taskId: 0 });
-        this.addStep('尝试直接领取传统活动任务');
-      } catch (e) {
-        throw new Error(`传统活动任务领取失败: ${e.message}`);
-      }
+      logger.warn(`功法残卷领取失败: ${error.message}`);
+      this.addStep(`功法残卷领取失败: ${error.message}`);
+      throw error;
     }
   }
 
@@ -722,7 +905,6 @@ class TaskExecutor {
     this.addStep('开始传统活动礼物赠送');
     
     try {
-      // 尝试赠送礼物
       await this.send('legacy_gift_send', { type: 1 });
       this.addStep('传统活动礼物赠送成功');
     } catch (error) {
@@ -736,7 +918,6 @@ class TaskExecutor {
    */
   async startBatch() {
     this.addStep('开始批量任务');
-    // 这里可以添加初始化逻辑
     this.addStep('批量任务初始化完成');
   }
 
@@ -762,7 +943,127 @@ class TaskExecutor {
     this.addStep('开始智能发车');
     
     try {
-      await this.send('car_smart_send');
+      // 从taskSettings获取配置
+      const settings = this.taskSettings || {};
+      const useGoldRefreshFallback = settings.useGoldRefreshFallback || false;
+      const carMinColor = settings.carMinColor || 4;
+      const smartDepartureMatchAll = settings.smartDepartureMatchAll || false;
+      const customConditions = {
+        gold: settings.smartDepartureGoldThreshold || 0,
+        recruit: settings.smartDepartureRecruitThreshold || 0,
+        jade: settings.smartDepartureJadeThreshold || 0,
+        ticket: settings.smartDepartureTicketThreshold || 0
+      };
+
+      // 1. 获取车辆信息
+      this.addStep('获取车辆信息');
+      const carRes = await this.send('car_getrolecar', {}, 10000);
+      const carList = this.normalizeCars(carRes);
+
+      // 2. 获取刷新票数量
+      let refreshTickets = 0;
+      try {
+        const roleRes = await this.send('role_getroleinfo', {}, 10000);
+        refreshTickets = Number(roleRes?.role?.items?.[35002]?.quantity || 0);
+        this.addStep(`剩余刷新次数: ${refreshTickets}`);
+      } catch (e) {
+        this.addStep('获取刷新票数量失败');
+      }
+
+      // 3. 处理每辆车
+      for (const car of carList) {
+        if (Number(car.sendAt || 0) !== 0) continue;
+
+        try {
+          const effectiveTickets = useGoldRefreshFallback ? 999 : refreshTickets;
+
+          if (this.shouldSendCar(car, effectiveTickets, carMinColor, customConditions, useGoldRefreshFallback, smartDepartureMatchAll)) {
+            this.addStep(`车辆[${this.gradeLabel(car.color)}]满足条件，直接发车`);
+            await this.send('car_send', {
+              carId: String(car.id),
+              helperId: 0,
+              text: '',
+              isUpgrade: false
+            }, 10000);
+            await this.delay(500);
+            continue;
+          }
+
+          let shouldRefresh = false;
+          const free = Number(car.refreshCount ?? 0) === 0;
+          const useGoldFallback = useGoldRefreshFallback && !free && refreshTickets < 6;
+
+          if (refreshTickets >= 6) shouldRefresh = true;
+          else if (free) shouldRefresh = true;
+          else if (useGoldFallback) {
+            shouldRefresh = true;
+            this.addStep(`车辆[${this.gradeLabel(car.color)}]将启用金砖刷新`);
+          } else {
+            this.addStep(`车辆[${this.gradeLabel(car.color)}]无刷新次数，直接发车`);
+            await this.send('car_send', {
+              carId: String(car.id),
+              helperId: 0,
+              text: '',
+              isUpgrade: false
+            }, 10000);
+            await this.delay(500);
+            continue;
+          }
+
+          while (shouldRefresh) {
+            this.addStep(`车辆[${this.gradeLabel(car.color)}]尝试刷新`);
+            const resp = await this.send('car_refresh', { carId: String(car.id) }, 10000);
+            const data = resp?.car || resp?.body?.car || resp;
+
+            if (data && typeof data === 'object') {
+              if (data.color != null) car.color = Number(data.color);
+              if (data.refreshCount != null) car.refreshCount = Number(data.refreshCount);
+              if (data.rewards != null) car.rewards = data.rewards;
+            }
+
+            try {
+              const roleRes = await this.send('role_getroleinfo', {}, 5000);
+              refreshTickets = Number(roleRes?.role?.items?.[35002]?.quantity || 0);
+            } catch (e) {}
+
+            if (this.shouldSendCar(car, useGoldRefreshFallback ? 999 : refreshTickets, carMinColor, customConditions, useGoldRefreshFallback, smartDepartureMatchAll)) {
+              this.addStep(`刷新后车辆[${this.gradeLabel(car.color)}]满足条件，发车`);
+              await this.send('car_send', {
+                carId: String(car.id),
+                helperId: 0,
+                text: '',
+                isUpgrade: false
+              }, 10000);
+              await this.delay(500);
+              break;
+            }
+
+            const freeNow = Number(car.refreshCount ?? 0) === 0;
+            const useGoldFallbackNow = useGoldRefreshFallback && !freeNow && refreshTickets < 6;
+
+            if (refreshTickets >= 6) shouldRefresh = true;
+            else if (freeNow) shouldRefresh = true;
+            else if (useGoldFallbackNow) shouldRefresh = true;
+            else {
+              this.addStep(`刷新后车辆[${this.gradeLabel(car.color)}]无刷新次数，发车`);
+              await this.send('car_send', {
+                carId: String(car.id),
+                helperId: 0,
+                text: '',
+                isUpgrade: false
+              }, 10000);
+              await this.delay(500);
+              break;
+            }
+
+            await this.delay(1000);
+          }
+        } catch (carError) {
+          this.addStep(`车辆[${this.gradeLabel(car.color)}]处理失败: ${carError.message}`);
+          continue;
+        }
+      }
+
       this.addStep('智能发车完成');
     } catch (error) {
       logger.warn(`智能发车失败: ${error.message}`);

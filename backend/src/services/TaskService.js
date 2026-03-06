@@ -454,7 +454,7 @@ class TaskService {
       }
 
       return {
-        status: 'success',
+        status: steps.some(s => s.status === 'failed') ? 'failed' : 'success',
         steps
       };
     } catch (error) {

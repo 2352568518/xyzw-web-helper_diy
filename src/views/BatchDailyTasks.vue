@@ -3273,6 +3273,45 @@ const saveTask = async () => {
     selectedTasks: [...taskForm.selectedTasks],
     enabled: taskForm.enabled,
     _synced: editingTask.value?._synced || false, // 保留同步状态
+    // 添加所有配置项
+    settings: {
+      // 智能发车相关配置
+      useGoldRefreshFallback: batchSettings.useGoldRefreshFallback,
+      carMinColor: batchSettings.carMinColor,
+      smartDepartureMatchAll: batchSettings.smartDepartureMatchAll,
+      smartDepartureGoldThreshold: batchSettings.smartDepartureGoldThreshold,
+      smartDepartureRecruitThreshold: batchSettings.smartDepartureRecruitThreshold,
+      smartDepartureJadeThreshold: batchSettings.smartDepartureJadeThreshold,
+      smartDepartureTicketThreshold: batchSettings.smartDepartureTicketThreshold,
+      // 开箱相关配置
+      defaultBoxType: batchSettings.defaultBoxType,
+      boxCount: batchSettings.boxCount,
+      // 钓鱼相关配置
+      defaultFishType: batchSettings.defaultFishType,
+      fishCount: batchSettings.fishCount,
+      // 招募相关配置
+      recruitCount: batchSettings.recruitCount,
+      // 阵容相关配置
+      arenaFormation: currentTemplate.arenaFormation,
+      towerFormation: currentTemplate.towerFormation,
+      bossFormation: currentTemplate.bossFormation,
+      bossTimes: currentTemplate.bossTimes,
+      // 其他配置
+      claimBottle: currentTemplate.claimBottle,
+      payRecruit: currentTemplate.payRecruit,
+      openBox: currentTemplate.openBox,
+      arenaEnable: currentTemplate.arenaEnable,
+      claimHangUp: currentTemplate.claimHangUp,
+      claimEmail: currentTemplate.claimEmail,
+      blackMarketPurchase: currentTemplate.blackMarketPurchase,
+      // 延迟配置
+      commandDelay: batchSettings.commandDelay,
+      taskDelay: batchSettings.taskDelay,
+      actionDelay: batchSettings.actionDelay,
+      battleDelay: batchSettings.battleDelay,
+      refreshDelay: batchSettings.refreshDelay,
+      longDelay: batchSettings.longDelay
+    }
   };
 
   let isNew = !editingTask.value;
