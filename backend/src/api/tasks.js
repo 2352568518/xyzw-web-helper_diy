@@ -5,7 +5,7 @@
 import express from 'express';
 import TaskService from '../services/TaskService.js';
 import { logger } from '../utils/logger.js';
-import supabase from '../config/supabase.js';
+import { supabase } from '../config/supabase.js';
 
 const router = express.Router();
 
