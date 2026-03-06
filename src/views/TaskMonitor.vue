@@ -752,9 +752,21 @@ const showTaskDetail = async (task) => {
       if (sortedExecs.length > 0) {
         // 找到同一次执行的所有记录
         const latestStartTime = sortedExecs[0].started_at;
-        lastExecutionLogs.value = sortedExecs.filter(e => 
+        const latestExecs = sortedExecs.filter(e => 
           e.started_at === latestStartTime
         );
+        
+        // 按照任务的token_ids顺序排序
+        const tokenIdOrder = task.token_ids || [];
+        lastExecutionLogs.value = latestExecs.sort((a, b) => {
+          const indexA = tokenIdOrder.indexOf(a.token_id);
+          const indexB = tokenIdOrder.indexOf(b.token_id);
+          // 如果token_id不在列表中，放到最后
+          if (indexA === -1 && indexB === -1) return 0;
+          if (indexA === -1) return 1;
+          if (indexB === -1) return -1;
+          return indexA - indexB;
+        });
       } else {
         lastExecutionLogs.value = [];
       }
