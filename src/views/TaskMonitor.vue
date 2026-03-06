@@ -734,7 +734,7 @@ const taskOptions = computed(() => {
 });
 
 const tokenOptions = computed(() => {
-  const tokens = tokenStore.tokens || [];
+  const tokens = tokenStore.gameTokens || [];
   return tokens.map(t => ({
     label: t.name || t.id,
     value: t.id
