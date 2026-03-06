@@ -9,6 +9,12 @@
           </template>
           刷新
         </n-button>
+        <n-button @click="clearExecutionLogs" type="warning" :loading="clearingLogs">
+          <template #icon>
+            <n-icon><Trash2 /></n-icon>
+          </template>
+          清空日志
+        </n-button>
         <n-switch v-model:value="autoRefresh" @update:value="handleAutoRefresh">
           <template #checked>自动刷新</template>
           <template #unchecked>手动刷新</template>
@@ -36,7 +42,7 @@
           <div class="stat-label">激活任务</div>
         </div>
       </div>
-      <div class="stat-card success">
+      <div class="stat-card success" @click="showStatsDetail('success')">
         <div class="stat-icon">
           <n-icon size="24"><Checkmark /></n-icon>
         </div>
@@ -44,14 +50,20 @@
           <div class="stat-value">{{ todaySuccessCount }}</div>
           <div class="stat-label">今日成功</div>
         </div>
+        <div class="stat-action">
+          <n-icon><ChevronRight /></n-icon>
+        </div>
       </div>
-      <div class="stat-card failed">
+      <div class="stat-card failed" @click="showStatsDetail('failed')">
         <div class="stat-icon">
           <n-icon size="24"><CloseCircle /></n-icon>
         </div>
         <div class="stat-info">
           <div class="stat-value">{{ todayFailedCount }}</div>
           <div class="stat-label">今日失败</div>
+        </div>
+        <div class="stat-action">
+          <n-icon><ChevronRight /></n-icon>
         </div>
       </div>
     </div>
@@ -110,8 +122,15 @@
 
             <div class="task-stats">
               <div class="mini-stat" v-if="taskStats[task.id]">
-                <span class="success">{{ taskStats[task.id].success || 0 }} 成功</span>
-                <span class="failed">{{ taskStats[task.id].failed || 0 }} 失败</span>
+                <div class="stat-row">
+                  <span class="label">上次执行:</span>
+                  <span class="value">{{ formatTime(taskStats[task.id].lastExecutionTime) }}</span>
+                </div>
+                <div class="stat-row">
+                  <span class="success">{{ taskStats[task.id].success || 0 }} 成功</span>
+                  <span class="failed">{{ taskStats[task.id].failed || 0 }} 失败</span>
+                  <span class="total">共 {{ taskStats[task.id].total || 0 }} 个</span>
+                </div>
               </div>
             </div>
 
@@ -284,6 +303,117 @@
           <div class="settings-preview">
             <pre>{{ JSON.stringify(selectedTask.settings, null, 2) }}</pre>
           </div>
+
+          <n-divider>上次执行情况</n-divider>
+          
+          <n-spin :show="loadingLogs">
+            <div v-if="lastExecutionLogs && lastExecutionLogs.length > 0" class="execution-logs">
+              <div class="logs-header">
+                <div class="log-summary">
+                  <n-tag type="info" size="small">
+                    执行时间: {{ formatTime(lastExecutionLogs[0].started_at) }}
+                  </n-tag>
+                  <n-tag v-if="lastExecutionLogs.some(l => l.status === 'completed')" type="success" size="small">
+                    成功: {{ lastExecutionLogs.filter(l => l.status === 'completed').length }} 个
+                  </n-tag>
+                  <n-tag v-if="lastExecutionLogs.some(l => l.status === 'failed')" type="error" size="small">
+                    失败: {{ lastExecutionLogs.filter(l => l.status === 'failed').length }} 个
+                  </n-tag>
+                  <n-tag type="default" size="small">
+                    共: {{ lastExecutionLogs.length }} 个
+                  </n-tag>
+                </div>
+              </div>
+              
+              <div class="logs-list">
+                <div 
+                  v-for="log in lastExecutionLogs" 
+                  :key="log.id" 
+                  class="log-item"
+                  :class="`status-${log.status}`"
+                >
+                  <div class="log-header">
+                    <span class="account-name">{{ getTokenName(log.token_id) }}</span>
+                    <n-tag :type="getStatusType(log.status)" size="small">
+                      {{ getStatusText(log.status) }}
+                    </n-tag>
+                  </div>
+                  <div class="log-time">
+                    {{ formatTime(log.started_at) }}
+                    <span v-if="log.completed_at">
+                      (耗时: {{ formatDuration(log.started_at, log.completed_at) }})
+                    </span>
+                  </div>
+                  <div class="log-result" v-if="log.result">
+                    <div class="result-summary" @click="toggleResultDetail(log.id)">
+                      <span>{{ summarizeResult(log.result) }}</span>
+                      <n-icon><ChevronDownOutline /></n-icon>
+                    </div>
+                    <div class="result-detail" v-if="expandedResults[log.id]">
+                      <pre>{{ JSON.stringify(log.result, null, 2) }}</pre>
+                    </div>
+                  </div>
+                  <div class="log-error" v-if="log.status === 'failed' && log.result?.error">
+                    <n-alert type="error" :bordered="false" size="small">
+                      {{ log.result.error }}
+                    </n-alert>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div v-else class="no-logs">
+              <n-empty description="暂无执行记录" />
+            </div>
+          </n-spin>
+        </div>
+      </n-drawer-content>
+    </n-drawer>
+
+    <!-- 统计详情抽屉 -->
+    <n-drawer v-model:show="showStatsDrawer" width="600px">
+      <n-drawer-content :title="statsDrawerData?.title || '统计详情'">
+        <div v-if="statsDrawerData && statsDrawerData.executions.length > 0" class="stats-detail">
+          <div class="stats-summary">
+            <n-tag type="info" size="small">
+              共 {{ statsDrawerData.executions.length }} 条记录
+            </n-tag>
+          </div>
+          
+          <div class="stats-list">
+            <div 
+              v-for="exec in statsDrawerData.executions" 
+              :key="exec.id" 
+              class="stat-item"
+              :class="`status-${exec.status}`"
+            >
+              <div class="stat-item-header">
+                <span class="task-name">{{ getTaskName(exec.task_id) }}</span>
+                <span class="account-name">{{ getTokenName(exec.token_id) }}</span>
+              </div>
+              <div class="stat-item-time">
+                {{ formatTime(exec.started_at) }}
+              </div>
+              <div class="stat-item-result" v-if="exec.result">
+                <div class="result-summary" @click="toggleResultDetail(exec.id)">
+                  <span>{{ summarizeResult(exec.result) }}</span>
+                  <n-icon><ChevronDownOutline /></n-icon>
+                </div>
+                <div class="result-detail" v-if="expandedResults[exec.id]">
+                  <pre>{{ JSON.stringify(exec.result, null, 2) }}</pre>
+                </div>
+              </div>
+              <div class="stat-item-error" v-if="exec.status === 'failed' && exec.result?.error">
+                <n-alert type="error" :bordered="false" size="small">
+                  {{ exec.result.error }}
+                </n-alert>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div v-else class="no-stats">
+          <n-empty description="暂无记录" />
         </div>
       </n-drawer-content>
     </n-drawer>
@@ -306,7 +436,8 @@ import {
   ChevronDownOutline,
   PlayCircle,
   PauseCircle,
-  HelpCircle
+  HelpCircle,
+  Trash2
 } from '@vicons/ionicons5';
 
 const message = useMessage();
@@ -387,9 +518,6 @@ const loadTasks = async () => {
 };
 
 const loadTaskStats = async () => {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  
   for (const task of tasks.value) {
     try {
       const res = await apiService.getTaskExecutions(task.id, {
@@ -397,17 +525,42 @@ const loadTaskStats = async () => {
       });
       
       if (res?.success && Array.isArray(res.data)) {
-        const todayExecs = res.data.filter(e => 
-          new Date(e.started_at) >= today
+        // 按时间排序，找到最新的一次任务执行
+        const sortedExecs = res.data.sort((a, b) => 
+          new Date(b.started_at).getTime() - new Date(a.started_at).getTime()
         );
         
-        taskStats.value[task.id] = {
-          success: todayExecs.filter(e => e.status === 'completed').length,
-          failed: todayExecs.filter(e => e.status === 'failed').length
-        };
+        if (sortedExecs.length > 0) {
+          // 找到同一次执行的所有记录（相同的开始时间）
+          const latestStartTime = sortedExecs[0].started_at;
+          const lastExecution = sortedExecs.filter(e => 
+            e.started_at === latestStartTime
+          );
+          
+          // 统计这次执行的成功和失败数量
+          taskStats.value[task.id] = {
+            success: lastExecution.filter(e => e.status === 'completed').length,
+            failed: lastExecution.filter(e => e.status === 'failed').length,
+            total: lastExecution.length,
+            lastExecutionTime: latestStartTime
+          };
+        } else {
+          taskStats.value[task.id] = {
+            success: 0,
+            failed: 0,
+            total: 0,
+            lastExecutionTime: null
+          };
+        }
       }
     } catch (error) {
       console.error('加载任务统计失败:', error);
+      taskStats.value[task.id] = {
+        success: 0,
+        failed: 0,
+        total: 0,
+        lastExecutionTime: null
+      };
     }
   }
 };
@@ -574,8 +727,47 @@ const retryExecution = async (exec) => {
   }
 };
 
-const showTaskDetail = (task) => {
+const lastExecutionLogs = ref(null);
+const loadingLogs = ref(false);
+const clearingLogs = ref(false);
+const showStatsDrawer = ref(false);
+const statsDrawerData = ref(null);
+
+const showTaskDetail = async (task) => {
   selectedTask.value = task;
+  loadingLogs.value = true;
+  
+  try {
+    // 加载上次执行的详细日志
+    const res = await apiService.getTaskExecutions(task.id, {
+      limit: 100
+    });
+    
+    if (res?.success && Array.isArray(res.data)) {
+      // 按时间排序，找到最新的一次执行
+      const sortedExecs = res.data.sort((a, b) => 
+        new Date(b.started_at).getTime() - new Date(a.started_at).getTime()
+      );
+      
+      if (sortedExecs.length > 0) {
+        // 找到同一次执行的所有记录
+        const latestStartTime = sortedExecs[0].started_at;
+        lastExecutionLogs.value = sortedExecs.filter(e => 
+          e.started_at === latestStartTime
+        );
+      } else {
+        lastExecutionLogs.value = [];
+      }
+    } else {
+      lastExecutionLogs.value = [];
+    }
+  } catch (error) {
+    console.error('加载执行日志失败:', error);
+    lastExecutionLogs.value = [];
+  } finally {
+    loadingLogs.value = false;
+  }
+  
   showDetailDrawer.value = true;
 };
 
@@ -595,6 +787,59 @@ const handleAutoRefresh = (value) => {
       refreshTimer = null;
     }
   }
+};
+
+const clearExecutionLogs = () => {
+  dialog.warning({
+    title: '清空执行日志',
+    content: '确定要清空所有历史执行日志吗？此操作不可恢复。',
+    positiveText: '确定清空',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      clearingLogs.value = true;
+      try {
+        // 调用API清空日志
+        const result = await apiService.clearTaskExecutions();
+        if (result?.success) {
+          message.success('日志清空成功');
+          // 重新加载数据
+          await loadExecutions();
+          await loadTaskStats();
+        } else {
+          message.error(result?.error || '清空失败');
+        }
+      } catch (error) {
+        console.error('清空日志失败:', error);
+        message.error('清空失败，请稍后重试');
+      } finally {
+        clearingLogs.value = false;
+      }
+    }
+  });
+};
+
+const showStatsDetail = (type) => {
+  const today = new Date().toDateString();
+  let filteredExecutions = [];
+  
+  if (type === 'success') {
+    filteredExecutions = executions.value.filter(e => 
+      e.status === 'completed' && 
+      new Date(e.started_at).toDateString() === today
+    );
+  } else if (type === 'failed') {
+    filteredExecutions = executions.value.filter(e => 
+      e.status === 'failed' && 
+      new Date(e.started_at).toDateString() === today
+    );
+  }
+  
+  statsDrawerData.value = {
+    type,
+    title: type === 'success' ? '今日成功执行' : '今日失败执行',
+    executions: filteredExecutions
+  };
+  showStatsDrawer.value = true;
 };
 
 const formatRunInfo = (task) => {
@@ -872,6 +1117,13 @@ onUnmounted(() => {
   background: white;
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  cursor: pointer;
+  transition: all 0.3s;
+
+  &:hover {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+    transform: translateY(-2px);
+  }
 
   .stat-icon {
     width: 48px;
@@ -883,6 +1135,10 @@ onUnmounted(() => {
     margin-right: 12px;
   }
 
+  .stat-info {
+    flex: 1;
+  }
+
   .stat-value {
     font-size: 28px;
     font-weight: 700;
@@ -891,6 +1147,11 @@ onUnmounted(() => {
   .stat-label {
     font-size: 14px;
     color: #666;
+  }
+
+  .stat-action {
+    color: #999;
+    margin-left: 8px;
   }
 
   &.total .stat-icon { background: #e3f2fd; color: #1976d2; }
@@ -904,6 +1165,103 @@ onUnmounted(() => {
   
   &.failed .stat-icon { background: #ffebee; color: #d32f2f; }
   &.failed .stat-value { color: #d32f2f; }
+}
+
+.stats-detail {
+  .stats-summary {
+    margin-bottom: 16px;
+  }
+
+  .stats-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .stat-item {
+    border: 1px solid #e8e8e8;
+    border-radius: 8px;
+    padding: 12px;
+    transition: all 0.3s;
+
+    &:hover {
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+
+    &.status-completed {
+      border-left: 4px solid #18a058;
+      background: linear-gradient(to right, #f6ffed, white);
+    }
+
+    &.status-failed {
+      border-left: 4px solid #d03050;
+      background: linear-gradient(to right, #fff7f7, white);
+    }
+
+    .stat-item-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+
+      .task-name {
+        font-weight: 600;
+      }
+
+      .account-name {
+        font-size: 12px;
+        color: #666;
+      }
+    }
+
+    .stat-item-time {
+      font-size: 12px;
+      color: #666;
+      margin-bottom: 8px;
+    }
+
+    .stat-item-result {
+      margin-top: 8px;
+
+      .result-summary {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 12px;
+        background: #f5f5f5;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 13px;
+
+        &:hover {
+          background: #eee;
+        }
+      }
+
+      .result-detail {
+        margin-top: 8px;
+        padding: 12px;
+        background: #f8f8f8;
+        border-radius: 6px;
+        overflow-x: auto;
+
+        pre {
+          margin: 0;
+          font-size: 12px;
+          white-space: pre-wrap;
+        }
+      }
+    }
+
+    .stat-item-error {
+      margin-top: 8px;
+    }
+  }
+}
+
+.no-stats {
+  padding: 40px 0;
+  text-align: center;
 }
 
 .tasks-section, .executions-section {
@@ -999,12 +1357,31 @@ onUnmounted(() => {
     margin-bottom: 12px;
 
     .mini-stat {
-      display: flex;
-      gap: 16px;
       font-size: 12px;
 
-      .success { color: #18a058; }
-      .failed { color: #d03050; }
+      .stat-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 4px;
+
+        &:last-child {
+          margin-bottom: 0;
+        }
+
+        .label {
+          color: #666;
+        }
+
+        .value {
+          color: #333;
+          font-weight: 500;
+        }
+
+        .success { color: #18a058; margin-right: 12px; }
+        .failed { color: #d03050; margin-right: 12px; }
+        .total { color: #2080f0; }
+      }
     }
   }
 
@@ -1150,6 +1527,109 @@ onUnmounted(() => {
       margin: 0;
       font-size: 12px;
     }
+  }
+
+  .execution-logs {
+    .logs-header {
+      margin-bottom: 16px;
+
+      .log-summary {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+    }
+
+    .logs-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .log-item {
+      border: 1px solid #e8e8e8;
+      border-radius: 8px;
+      padding: 12px;
+      transition: all 0.3s;
+
+      &:hover {
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      }
+
+      &.status-completed {
+        border-left: 4px solid #18a058;
+        background: linear-gradient(to right, #f6ffed, white);
+      }
+
+      &.status-failed {
+        border-left: 4px solid #d03050;
+        background: linear-gradient(to right, #fff7f7, white);
+      }
+
+      &.status-running {
+        border-left: 4px solid #2080f0;
+        background: linear-gradient(to right, #f0f7ff, white);
+      }
+
+      .log-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+
+        .account-name {
+          font-weight: 600;
+        }
+      }
+
+      .log-time {
+        font-size: 12px;
+        color: #666;
+        margin-bottom: 8px;
+      }
+
+      .log-result {
+        margin-top: 8px;
+
+        .result-summary {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 8px 12px;
+          background: #f5f5f5;
+          border-radius: 6px;
+          cursor: pointer;
+          font-size: 13px;
+
+          &:hover {
+            background: #eee;
+          }
+        }
+
+        .result-detail {
+          margin-top: 8px;
+          padding: 12px;
+          background: #f8f8f8;
+          border-radius: 6px;
+          overflow-x: auto;
+
+          pre {
+            margin: 0;
+            font-size: 12px;
+            white-space: pre-wrap;
+          }
+        }
+      }
+
+      .log-error {
+        margin-top: 8px;
+      }
+    }
+  }
+
+  .no-logs {
+    padding: 40px 0;
+    text-align: center;
   }
 }
 

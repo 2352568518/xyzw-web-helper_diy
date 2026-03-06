@@ -326,6 +326,20 @@ class ApiService {
     }
   }
 
+  async clearTaskExecutions() {
+    if (!this.shouldUseBackend()) {
+      return { success: true, message: '本地模式，日志已清空' };
+    }
+
+    try {
+      const response = await apiClient.delete('/api/tasks/executions');
+      return response.data;
+    } catch (error) {
+      console.error('清空任务执行记录失败:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
   // 健康检查
   async healthCheck() {
     if (!this.shouldUseBackend()) {

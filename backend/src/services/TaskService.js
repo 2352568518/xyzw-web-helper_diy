@@ -704,6 +704,28 @@ class TaskService {
       tasks: this.cronJobs.keys()
     };
   }
+
+  /**
+   * 清空所有任务执行记录
+   */
+  async clearAllExecutions() {
+    try {
+      const { error } = await supabase
+        .from('task_executions')
+        .delete();
+
+      if (error) {
+        logger.error(`清空任务执行记录失败: ${error.message}`);
+        throw error;
+      }
+
+      logger.info('任务执行记录清空成功');
+      return true;
+    } catch (error) {
+      logger.error(`清空任务执行记录异常: ${error.message}`);
+      throw error;
+    }
+  }
 }
 
 // 导出单例
