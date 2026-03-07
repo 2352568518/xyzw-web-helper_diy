@@ -168,9 +168,6 @@ const router = createRouter({
   }
 })
 
-// 热更新路由
-autoRoutes.handleHotUpdate?.(router);
-
 // 导航守卫
 router.beforeEach((to, from, next) => {
   // 首先检查API密钥
