@@ -51,7 +51,7 @@
           <div class="stat-label">今日执行</div>
         </div>
         <div class="stat-action">
-          <n-icon><ChevronRight /></n-icon>
+          <n-icon><ChevronForward /></n-icon>
         </div>
       </div>
       <div class="stat-card failed" @click="showStatsDetail('failed')">
@@ -63,7 +63,7 @@
           <div class="stat-label">今日失败</div>
         </div>
         <div class="stat-action">
-          <n-icon><ChevronRight /></n-icon>
+          <n-icon><ChevronForward /></n-icon>
         </div>
       </div>
     </div>
@@ -533,7 +533,7 @@
               <div class="stat-item-header" @click="toggleScheduleExecution(exec)">
                 <div class="header-left">
                   <n-icon class="expand-icon" :class="{ rotated: expandedScheduleExecutions[`${exec.taskId}_${exec.startedAt}`] }">
-                    <ChevronRight />
+                    <ChevronForward />
                   </n-icon>
                   <span class="task-name">{{ exec.taskName }}</span>
                 </div>
@@ -708,7 +708,6 @@ import {
   TimeOutline,
   TimerOutline,
   ChevronDownOutline,
-  ChevronRight,
   PlayCircle,
   PauseCircle,
   HelpCircle,
