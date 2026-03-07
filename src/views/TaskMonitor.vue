@@ -886,15 +886,9 @@ const cronNextRuns = ref([]);
 const taskScheduleSelectedGroupIds = ref([]);
 const showGroupManageModal = ref(false);
 
-// 排序后的Token列表
+// 排序后的Token列表 - 保持与tokenStore相同的顺序
 const sortedTokens = computed(() => {
-  return [...tokenStore.gameTokens].sort((tokenA, tokenB) => {
-    const nameA = tokenA.name?.toLowerCase() || "";
-    const nameB = tokenB.name?.toLowerCase() || "";
-    if (nameA < nameB) return -1;
-    if (nameA > nameB) return 1;
-    return 0;
-  });
+  return [...tokenStore.gameTokens];
 });
 
 // 任务分组定义
