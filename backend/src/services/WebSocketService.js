@@ -72,12 +72,53 @@ const responseToCommandMap = {
   tower_claimrewardresp: ['tower_claimreward'],
   fight_starttowerresp: ['fight_starttower'],
   arena_getareatargetresp: ['arena_getareatarget'],
+  arena_startarearesp: ['arena_startarea'],
   fight_startareaarenaresp: ['fight_startareaarena'],
   legion_getinforesp: ['legion_getinfo'],
   legion_getinforresp: ['legion_getinfo'], // 服务端可能的拼写变体
   legion_claimpayloadtaskresp: ['legion_claimpayloadtask'],
   legion_claimpayloadtaskprogressresp: ['legion_claimpayloadtaskprogress'],
-};
+
+  // 阵容、竞技场切换
+  presetteam_getinforesp: ['presetteam_getinfo'],
+  presetteam_saveteamresp: ['presetteam_saveteam'],
+
+  // 怪异塔、合并宝箱（一键领怪异塔免费道具 / 使用道具 / 合成）
+  evotowerinforesp: ['evotower_getinfo'],
+  evotower_fightresp: ['evotower_fight'],
+  evotower_readyfightresp: ['evotower_readyfight'],
+  evotower_claimrewardresp: ['evotower_claimreward'],
+  mergeboxinforesp: ['mergebox_getinfo'],
+  mergebox_claimfreeenergyresp: ['mergebox_claimfreeenergy'],
+  mergebox_openboxresp: ['mergebox_openbox'],
+  mergebox_automergeitemresp: ['mergebox_automergeitem'],
+  mergebox_mergeitemresp: ['mergebox_mergeitem'],
+  mergebox_claimcostprogressresp: ['mergebox_claimcostprogress'],
+  mergebox_claimmergeprogressresp: ['mergebox_claimmergeprogress'],
+
+  // 角色信息（爬塔刷新体力等）
+  role_getroleinforesp: ['role_getroleinfo'],
+
+  // 换皮闯关
+  towers_getinforesp: ['towers_getinfo'],
+  towers_startresp: ['towers_start'],
+  towers_fightresp: ['towers_fight'],
+
+  // 开箱、商店等
+  item_openboxresp: ['item_openbox', 'item_batchclaimboxpointreward'],
+  store_buyresp: ['store_purchase'],
+  legion_storebuygoodsresp: ['legion_storebuygoods'],
+  collection_claimfreerewardresp: ['collection_claimfreereward'],
+  legacy_claimhangupresp: ['legacy_claimhangup'],
+  legacy_getinforesp: ['legacy_getinfo'],
+  legacy_sendgiftresp: ['legacy_sendgift'],
+  legacy_getgiftsresp: ['legacy_getgifts'],
+  hero_recruitresp: ['hero_recruit'],
+  bosstower_getinforesp: ['bosstower_getinfo'],
+  bosstower_startbossresp: ['bosstower_startboss'],
+  bosstower_startboxresp: ['bosstower_startbox'],
+  discount_getdiscountinforesp: ['discount_getdiscountinfo'],
+}
 
 /**
  * WebSocket客户端类
@@ -234,12 +275,15 @@ class WebSocketClient {
    * 处理消息
    */
   _handleMessage(packet) {
+    // 游戏协议中 code 为 0/undefined 表示成功；-1 常表示成功或无额外数据（如加钟、切换阵容）
+    const isSuccess = packet.code === 0 || packet.code === undefined || packet.code === -1;
+
     // 处理Promise响应 - 优先使用resp字段进行响应匹配
     if (packet.resp !== undefined && this.promises[packet.resp]) {
       const promise = this.promises[packet.resp];
       delete this.promises[packet.resp];
 
-      if (packet.code === 0 || packet.code === undefined) {
+      if (isSuccess) {
         promise.resolve(packet.body || packet);
       } else {
         const errorDesc = errorCodeMap[packet.code] || packet.hint || '未知错误';
@@ -264,7 +308,7 @@ class WebSocketClient {
           if (originalCmds.includes(promiseData.originalCmd)) {
             delete this.promises[requestId];
             
-            if (packet.code === 0 || packet.code === undefined) {
+            if (isSuccess) {
               promiseData.resolve(packet.body || packet);
             } else {
               const errorDesc = errorCodeMap[packet.code] || packet.hint || '未知错误';
