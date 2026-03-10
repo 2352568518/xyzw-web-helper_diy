@@ -724,6 +724,59 @@ class ApiService {
       return { success: false, error: error.message };
     }
   }
+
+  // 收藏任务相关 API
+  async getFavoriteTasks() {
+    if (!this.shouldUseBackend()) {
+      const favorites = localStorage.getItem('favoriteTasks');
+      return { success: true, data: favorites ? JSON.parse(favorites) : [] };
+    }
+
+    try {
+      const response = await apiClient.get('/api/favorite-tasks');
+      return response.data;
+    } catch (error) {
+      console.error('获取收藏任务失败:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  async saveFavoriteTasks(favorites) {
+    if (!this.shouldUseBackend()) {
+      localStorage.setItem('favoriteTasks', JSON.stringify(favorites));
+      return { success: true, data: favorites };
+    }
+
+    try {
+      const response = await apiClient.post('/api/favorite-tasks', favorites);
+      return response.data;
+    } catch (error) {
+      console.error('保存收藏任务失败:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  async toggleFavoriteTask(taskId) {
+    if (!this.shouldUseBackend()) {
+      let favorites = JSON.parse(localStorage.getItem('favoriteTasks') || '[]');
+      const index = favorites.indexOf(taskId);
+      if (index === -1) {
+        favorites.push(taskId);
+      } else {
+        favorites.splice(index, 1);
+      }
+      localStorage.setItem('favoriteTasks', JSON.stringify(favorites));
+      return { success: true, data: favorites };
+    }
+
+    try {
+      const response = await apiClient.post('/api/favorite-tasks/toggle', { taskId });
+      return response.data;
+    } catch (error) {
+      console.error('切换收藏任务失败:', error);
+      return { success: false, error: error.message };
+    }
+  }
 }
 
 // 导出单例

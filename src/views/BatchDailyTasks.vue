@@ -301,335 +301,622 @@
         <!-- Batch Functions -->
         <n-card title="批量功能列表" style="margin-top: 16px">
           <n-tabs type="line" animated>
+            <n-tab-pane name="favorites" tab="收藏">
+              <n-space v-if="favoriteTasks.length > 0">
+                <n-button
+                  v-for="task in favoriteTasks"
+                  :key="task.id"
+                  size="small"
+                  @click="executeFavoriteTask(task)"
+                  :disabled="isRunning || selectedTokens.length === 0"
+                >
+                  {{ task.label }}
+                  <template #icon>
+                    <n-icon @click.stop="toggleFavorite(task.id)" style="cursor: pointer; margin-left: 4px;">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style="color: #faad14;">
+                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                      </svg>
+                    </n-icon>
+                  </template>
+                </n-button>
+              </n-space>
+              <n-empty v-else description="暂无收藏任务，请在其他标签页中点击任务旁的星标添加收藏" />
+            </n-tab-pane>
             <n-tab-pane name="daily" tab="日常">
               <n-space>
-                <n-button
-                  size="small"
-                  @click="claimHangUpRewards"
-                  :disabled="isRunning || selectedTokens.length === 0"
-                >
-                  领取挂机
-                </n-button>
-                <n-button
-                  size="small"
-                  @click="batchAddHangUpTime"
-                  :disabled="isRunning || selectedTokens.length === 0"
-                >
-                  一键加钟
-                </n-button>
-                <n-button
-                  size="small"
-                  @click="resetBottles"
-                  :disabled="isRunning || selectedTokens.length === 0"
-                >
-                  重置罐子
-                </n-button>
-                <n-button
-                  size="small"
-                  @click="batchlingguanzi"
-                  :disabled="isRunning || selectedTokens.length === 0"
-                >
-                  一键领取罐子
-                </n-button>
-                <n-button
-                  size="small"
-                  @click="batchclubsign"
-                  :disabled="isRunning || selectedTokens.length === 0"
-                >
-                  一键俱乐部签到
-                </n-button>
-                <n-button
-                  size="small"
-                  @click="batchStudy"
-                  :disabled="isRunning || selectedTokens.length === 0"
-                >
-                  一键答题
-                </n-button>
-                <n-button
-                  size="small"
-                  @click="batcharenafight"
-                  :disabled="
-                    isRunning || selectedTokens.length === 0 || !isarenaActivityOpen
-                  "
-                >
-                  一键竞技场战斗3次
-                </n-button>
-                <n-button
-                  size="small"
-                  @click="batchSmartSendCar"
-                  :disabled="
-                    isRunning || selectedTokens.length === 0 || !isCarActivityOpen
-                  "
-                >
-                  智能发车
-                </n-button>
-                <n-button
-                  size="small"
-                  @click="batchClaimCars"
-                  :disabled="
-                    isRunning || selectedTokens.length === 0 || !isCarActivityOpen
-                  "
-                >
-                  一键收车
-                </n-button>
-                <n-button
-                  size="small"
-                  @click="store_purchase"
-                  :disabled="isRunning || selectedTokens.length === 0"
-                >
-                  一键黑市采购
-                </n-button>
-                <n-button
-                  size="small"
-                  @click="collection_claimfreereward"
-                  :disabled="isRunning || selectedTokens.length === 0"
-                >
-                  一键领取珍宝阁
-                </n-button>
-                <n-button
-                  size="small"
-                  @click="batchGenieSweep"
-                  :disabled="isRunning || selectedTokens.length === 0"
-                >
-                  一键灯神扫荡
-                </n-button>
+                <div class="task-button-wrapper">
+                  <n-button
+                    size="small"
+                    @click="claimHangUpRewards"
+                    :disabled="isRunning || selectedTokens.length === 0"
+                  >
+                    领取挂机
+                  </n-button>
+                  <n-icon class="favorite-icon" :class="{ active: isFavorite('claimHangUpRewards') }" @click="toggleFavorite('claimHangUpRewards')">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" :fill="isFavorite('claimHangUpRewards') ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                  </n-icon>
+                </div>
+                <div class="task-button-wrapper">
+                  <n-button
+                    size="small"
+                    @click="batchAddHangUpTime"
+                    :disabled="isRunning || selectedTokens.length === 0"
+                  >
+                    一键加钟
+                  </n-button>
+                  <n-icon class="favorite-icon" :class="{ active: isFavorite('batchAddHangUpTime') }" @click="toggleFavorite('batchAddHangUpTime')">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" :fill="isFavorite('batchAddHangUpTime') ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                  </n-icon>
+                </div>
+                <div class="task-button-wrapper">
+                  <n-button
+                    size="small"
+                    @click="resetBottles"
+                    :disabled="isRunning || selectedTokens.length === 0"
+                  >
+                    重置罐子
+                  </n-button>
+                  <n-icon class="favorite-icon" :class="{ active: isFavorite('resetBottles') }" @click="toggleFavorite('resetBottles')">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" :fill="isFavorite('resetBottles') ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                  </n-icon>
+                </div>
+                <div class="task-button-wrapper">
+                  <n-button
+                    size="small"
+                    @click="batchlingguanzi"
+                    :disabled="isRunning || selectedTokens.length === 0"
+                  >
+                    一键领取罐子
+                  </n-button>
+                  <n-icon class="favorite-icon" :class="{ active: isFavorite('batchlingguanzi') }" @click="toggleFavorite('batchlingguanzi')">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" :fill="isFavorite('batchlingguanzi') ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                  </n-icon>
+                </div>
+                <div class="task-button-wrapper">
+                  <n-button
+                    size="small"
+                    @click="batchclubsign"
+                    :disabled="isRunning || selectedTokens.length === 0"
+                  >
+                    一键俱乐部签到
+                  </n-button>
+                  <n-icon class="favorite-icon" :class="{ active: isFavorite('batchclubsign') }" @click="toggleFavorite('batchclubsign')">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" :fill="isFavorite('batchclubsign') ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                  </n-icon>
+                </div>
+                <div class="task-button-wrapper">
+                  <n-button
+                    size="small"
+                    @click="batchStudy"
+                    :disabled="isRunning || selectedTokens.length === 0"
+                  >
+                    一键答题
+                  </n-button>
+                  <n-icon class="favorite-icon" :class="{ active: isFavorite('batchStudy') }" @click="toggleFavorite('batchStudy')">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" :fill="isFavorite('batchStudy') ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                  </n-icon>
+                </div>
+                <div class="task-button-wrapper">
+                  <n-button
+                    size="small"
+                    @click="batcharenafight"
+                    :disabled="
+                      isRunning || selectedTokens.length === 0 || !isarenaActivityOpen
+                    "
+                  >
+                    一键竞技场战斗3次
+                  </n-button>
+                  <n-icon class="favorite-icon" :class="{ active: isFavorite('batcharenafight') }" @click="toggleFavorite('batcharenafight')">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" :fill="isFavorite('batcharenafight') ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                  </n-icon>
+                </div>
+                <div class="task-button-wrapper">
+                  <n-button
+                    size="small"
+                    @click="batchSmartSendCar"
+                    :disabled="
+                      isRunning || selectedTokens.length === 0 || !isCarActivityOpen
+                    "
+                  >
+                    智能发车
+                  </n-button>
+                  <n-icon class="favorite-icon" :class="{ active: isFavorite('batchSmartSendCar') }" @click="toggleFavorite('batchSmartSendCar')">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" :fill="isFavorite('batchSmartSendCar') ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                  </n-icon>
+                </div>
+                <div class="task-button-wrapper">
+                  <n-button
+                    size="small"
+                    @click="batchClaimCars"
+                    :disabled="
+                      isRunning || selectedTokens.length === 0 || !isCarActivityOpen
+                    "
+                  >
+                    一键收车
+                  </n-button>
+                  <n-icon class="favorite-icon" :class="{ active: isFavorite('batchClaimCars') }" @click="toggleFavorite('batchClaimCars')">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" :fill="isFavorite('batchClaimCars') ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                  </n-icon>
+                </div>
+                <div class="task-button-wrapper">
+                  <n-button
+                    size="small"
+                    @click="store_purchase"
+                    :disabled="isRunning || selectedTokens.length === 0"
+                  >
+                    一键黑市采购
+                  </n-button>
+                  <n-icon class="favorite-icon" :class="{ active: isFavorite('store_purchase') }" @click="toggleFavorite('store_purchase')">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" :fill="isFavorite('store_purchase') ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                  </n-icon>
+                </div>
+                <div class="task-button-wrapper">
+                  <n-button
+                    size="small"
+                    @click="collection_claimfreereward"
+                    :disabled="isRunning || selectedTokens.length === 0"
+                  >
+                    一键领取珍宝阁
+                  </n-button>
+                  <n-icon class="favorite-icon" :class="{ active: isFavorite('collection_claimfreereward') }" @click="toggleFavorite('collection_claimfreereward')">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" :fill="isFavorite('collection_claimfreereward') ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                  </n-icon>
+                </div>
+                <div class="task-button-wrapper">
+                  <n-button
+                    size="small"
+                    @click="batchGenieSweep"
+                    :disabled="isRunning || selectedTokens.length === 0"
+                  >
+                    一键灯神扫荡
+                  </n-button>
+                  <n-icon class="favorite-icon" :class="{ active: isFavorite('batchGenieSweep') }" @click="toggleFavorite('batchGenieSweep')">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" :fill="isFavorite('batchGenieSweep') ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                  </n-icon>
+                </div>
               </n-space>
             </n-tab-pane>
             <n-tab-pane name="dungeon" tab="副本">
               <n-space>
-                <n-button
-                  size="small"
-                  @click="climbTower"
-                  :disabled="isRunning || selectedTokens.length === 0"
-                >
-                  一键爬塔
-                </n-button>
-                <n-button
-                  size="small"
-                  @click="batchmengjing"
-                  :disabled="
-                    isRunning ||
-                    selectedTokens.length === 0 ||
-                    !ismengjingActivityOpen
-                  "
-                >
-                  一键梦境
-                </n-button>
-                <n-button
-                  size="small"
-                  @click="skinChallenge"
-                  :disabled="isRunning || selectedTokens.length === 0"
-                >
-                  一键换皮闯关
-                </n-button>
-                <n-button
-                  size="small"
-                  @click="batchClaimPeachTasks"
-                  :disabled="isRunning || selectedTokens.length === 0"
-                >
-                  一键领取蟠桃园任务
-                </n-button>
-                <n-button
-                  size="small"
-                  @click="batchBuyDreamItems"
-                  :disabled="
-                    isRunning ||
-                    selectedTokens.length === 0 ||
-                    !ismengjingActivityOpen
-                  "
-                >
-                  一键购买梦境商品
-                </n-button>
+                <div class="task-button-wrapper">
+                  <n-button
+                    size="small"
+                    @click="climbTower"
+                    :disabled="isRunning || selectedTokens.length === 0"
+                  >
+                    一键爬塔
+                  </n-button>
+                  <n-icon class="favorite-icon" :class="{ active: isFavorite('climbTower') }" @click="toggleFavorite('climbTower')">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" :fill="isFavorite('climbTower') ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                  </n-icon>
+                </div>
+                <div class="task-button-wrapper">
+                  <n-button
+                    size="small"
+                    @click="batchmengjing"
+                    :disabled="
+                      isRunning ||
+                      selectedTokens.length === 0 ||
+                      !ismengjingActivityOpen
+                    "
+                  >
+                    一键梦境
+                  </n-button>
+                  <n-icon class="favorite-icon" :class="{ active: isFavorite('batchmengjing') }" @click="toggleFavorite('batchmengjing')">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" :fill="isFavorite('batchmengjing') ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                  </n-icon>
+                </div>
+                <div class="task-button-wrapper">
+                  <n-button
+                    size="small"
+                    @click="skinChallenge"
+                    :disabled="isRunning || selectedTokens.length === 0"
+                  >
+                    一键换皮闯关
+                  </n-button>
+                  <n-icon class="favorite-icon" :class="{ active: isFavorite('skinChallenge') }" @click="toggleFavorite('skinChallenge')">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" :fill="isFavorite('skinChallenge') ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                  </n-icon>
+                </div>
+                <div class="task-button-wrapper">
+                  <n-button
+                    size="small"
+                    @click="batchClaimPeachTasks"
+                    :disabled="isRunning || selectedTokens.length === 0"
+                  >
+                    一键领取蟠桃园任务
+                  </n-button>
+                  <n-icon class="favorite-icon" :class="{ active: isFavorite('batchClaimPeachTasks') }" @click="toggleFavorite('batchClaimPeachTasks')">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" :fill="isFavorite('batchClaimPeachTasks') ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                  </n-icon>
+                </div>
+                <div class="task-button-wrapper">
+                  <n-button
+                    size="small"
+                    @click="batchBuyDreamItems"
+                    :disabled="
+                      isRunning ||
+                      selectedTokens.length === 0 ||
+                      !ismengjingActivityOpen
+                    "
+                  >
+                    一键购买梦境商品
+                  </n-button>
+                  <n-icon class="favorite-icon" :class="{ active: isFavorite('batchBuyDreamItems') }" @click="toggleFavorite('batchBuyDreamItems')">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" :fill="isFavorite('batchBuyDreamItems') ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                  </n-icon>
+                </div>
               </n-space>
             </n-tab-pane>
             <n-tab-pane name="baoku" tab="宝库">
               <n-space>
-                <n-button
-                  size="small"
-                  @click="batchbaoku13"
-                  :disabled="
-                    isRunning || selectedTokens.length === 0 || !isbaokuActivityOpen
-                  "
-                >
-                  一键宝库前3层
-                </n-button>
-                <n-button
-                  size="small"
-                  @click="batchbaoku45"
-                  :disabled="
-                    isRunning || selectedTokens.length === 0 || !isbaokuActivityOpen
-                  "
-                >
-                  一键宝库4,5层
-                </n-button>
+                <div class="task-button-wrapper">
+                  <n-button
+                    size="small"
+                    @click="batchbaoku13"
+                    :disabled="
+                      isRunning || selectedTokens.length === 0 || !isbaokuActivityOpen
+                    "
+                  >
+                    一键宝库前3层
+                  </n-button>
+                  <n-icon class="favorite-icon" :class="{ active: isFavorite('batchbaoku13') }" @click="toggleFavorite('batchbaoku13')">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" :fill="isFavorite('batchbaoku13') ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                  </n-icon>
+                </div>
+                <div class="task-button-wrapper">
+                  <n-button
+                    size="small"
+                    @click="batchbaoku45"
+                    :disabled="
+                      isRunning || selectedTokens.length === 0 || !isbaokuActivityOpen
+                    "
+                  >
+                    一键宝库4,5层
+                  </n-button>
+                  <n-icon class="favorite-icon" :class="{ active: isFavorite('batchbaoku45') }" @click="toggleFavorite('batchbaoku45')">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" :fill="isFavorite('batchbaoku45') ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                  </n-icon>
+                </div>
               </n-space>
             </n-tab-pane>
             <n-tab-pane name="weirdTower" tab="怪异塔">
               <n-space>
-                <n-button
-                  size="small"
-                  @click="climbWeirdTower"
-                  :disabled="
-                    isRunning ||
-                    selectedTokens.length === 0 ||
-                    !isWeirdTowerActivityOpen
-                  "
-                >
-                  一键爬怪异塔
-                </n-button>
-                <n-button
-                  size="small"
-                  @click="batchUseItems"
-                  :disabled="
-                    isRunning ||
-                    selectedTokens.length === 0 ||
-                    !isWeirdTowerActivityOpen
-                  "
-                >
-                  一键使用怪异塔道具
-                </n-button>
-                <n-button
-                  size="small"
-                  @click="batchMergeItems"
-                  :disabled="
-                    isRunning ||
-                    selectedTokens.length === 0 ||
-                    !isWeirdTowerActivityOpen
-                  "
-                >
-                  一键怪异塔合成
-                </n-button>
-                <n-button
-                  size="small"
-                  @click="batchClaimFreeEnergy"
-                  :disabled="
-                    isRunning ||
-                    selectedTokens.length === 0 ||
-                    !isWeirdTowerActivityOpen
-                  "
-                >
-                  一键领取怪异塔免费道具
-                </n-button>
+                <div class="task-button-wrapper">
+                  <n-button
+                    size="small"
+                    @click="climbWeirdTower"
+                    :disabled="
+                      isRunning ||
+                      selectedTokens.length === 0 ||
+                      !isWeirdTowerActivityOpen
+                    "
+                  >
+                    一键爬怪异塔
+                  </n-button>
+                  <n-icon class="favorite-icon" :class="{ active: isFavorite('climbWeirdTower') }" @click="toggleFavorite('climbWeirdTower')">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" :fill="isFavorite('climbWeirdTower') ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                  </n-icon>
+                </div>
+                <div class="task-button-wrapper">
+                  <n-button
+                    size="small"
+                    @click="batchUseItems"
+                    :disabled="
+                      isRunning ||
+                      selectedTokens.length === 0 ||
+                      !isWeirdTowerActivityOpen
+                    "
+                  >
+                    一键使用怪异塔道具
+                  </n-button>
+                  <n-icon class="favorite-icon" :class="{ active: isFavorite('batchUseItems') }" @click="toggleFavorite('batchUseItems')">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" :fill="isFavorite('batchUseItems') ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                  </n-icon>
+                </div>
+                <div class="task-button-wrapper">
+                  <n-button
+                    size="small"
+                    @click="batchMergeItems"
+                    :disabled="
+                      isRunning ||
+                      selectedTokens.length === 0 ||
+                      !isWeirdTowerActivityOpen
+                    "
+                  >
+                    一键怪异塔合成
+                  </n-button>
+                  <n-icon class="favorite-icon" :class="{ active: isFavorite('batchMergeItems') }" @click="toggleFavorite('batchMergeItems')">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" :fill="isFavorite('batchMergeItems') ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                  </n-icon>
+                </div>
+                <div class="task-button-wrapper">
+                  <n-button
+                    size="small"
+                    @click="batchClaimFreeEnergy"
+                    :disabled="
+                      isRunning ||
+                      selectedTokens.length === 0 ||
+                      !isWeirdTowerActivityOpen
+                    "
+                  >
+                    一键领取怪异塔免费道具
+                  </n-button>
+                  <n-icon class="favorite-icon" :class="{ active: isFavorite('batchClaimFreeEnergy') }" @click="toggleFavorite('batchClaimFreeEnergy')">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" :fill="isFavorite('batchClaimFreeEnergy') ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                  </n-icon>
+                </div>
               </n-space>
             </n-tab-pane>
             <n-tab-pane name="resource" tab="资源">
               <n-space>
-                <n-button
-                  size="small"
-                  @click="openHelperModal('box')"
-                  :disabled="isRunning || selectedTokens.length === 0"
-                >
-                  批量开箱
-                </n-button>
-                <n-button
-                  size="small"
-                  @click="openHelperModal('pointsBox')"
-                  :disabled="isRunning || selectedTokens.length === 0"
-                >
-                  按积分开箱
-                </n-button>
-                <n-button
-                  size="small"
-                  @click="batchClaimBoxPointReward"
-                  :disabled="isRunning || selectedTokens.length === 0"
-                >
-                  领取宝箱积分
-                </n-button>
-                <n-button
-                  size="small"
-                  @click="openHelperModal('fish')"
-                  :disabled="isRunning || selectedTokens.length === 0"
-                >
-                  批量钓鱼
-                </n-button>
-                <n-button
-                  size="small"
-                  @click="openHelperModal('recruit')"
-                  :disabled="isRunning || selectedTokens.length === 0"
-                >
-                  批量招募
-                </n-button>
-                <n-button
-                  size="small"
-                  @click="batchHeroUpgrade"
-                  :disabled="isRunning || selectedTokens.length === 0"
-                >
-                  一键英雄升星
-                </n-button>
-                <n-button
-                  size="small"
-                  @click="batchBookUpgrade"
-                  :disabled="isRunning || selectedTokens.length === 0"
-                >
-                  一键图鉴升星
-                </n-button>
-                <n-button
-                  size="small"
-                  @click="batchClaimStarRewards"
-                  :disabled="isRunning || selectedTokens.length === 0"
-                >
-                  一键领取图鉴奖励
-                </n-button>
-                <n-button
-                  size="small"
-                  @click="legion_storebuygoods"
-                  :disabled="isRunning || selectedTokens.length === 0"
-                >
-                  一键购买四圣碎片
-                </n-button>
-                <n-button
-                  size="small"
-                  @click="legionStoreBuySkinCoins"
-                  :disabled="isRunning || selectedTokens.length === 0"
-                >
-                  一键购买俱乐部5皮肤币
-                </n-button>
+                <div class="task-button-wrapper">
+                  <n-button
+                    size="small"
+                    @click="openHelperModal('box')"
+                    :disabled="isRunning || selectedTokens.length === 0"
+                  >
+                    批量开箱
+                  </n-button>
+                  <n-icon class="favorite-icon" :class="{ active: isFavorite('openHelperModal_box') }" @click="toggleFavorite('openHelperModal_box')">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" :fill="isFavorite('openHelperModal_box') ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                  </n-icon>
+                </div>
+                <div class="task-button-wrapper">
+                  <n-button
+                    size="small"
+                    @click="openHelperModal('pointsBox')"
+                    :disabled="isRunning || selectedTokens.length === 0"
+                  >
+                    按积分开箱
+                  </n-button>
+                  <n-icon class="favorite-icon" :class="{ active: isFavorite('openHelperModal_pointsBox') }" @click="toggleFavorite('openHelperModal_pointsBox')">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" :fill="isFavorite('openHelperModal_pointsBox') ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                  </n-icon>
+                </div>
+                <div class="task-button-wrapper">
+                  <n-button
+                    size="small"
+                    @click="batchClaimBoxPointReward"
+                    :disabled="isRunning || selectedTokens.length === 0"
+                  >
+                    领取宝箱积分
+                  </n-button>
+                  <n-icon class="favorite-icon" :class="{ active: isFavorite('batchClaimBoxPointReward') }" @click="toggleFavorite('batchClaimBoxPointReward')">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" :fill="isFavorite('batchClaimBoxPointReward') ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                  </n-icon>
+                </div>
+                <div class="task-button-wrapper">
+                  <n-button
+                    size="small"
+                    @click="openHelperModal('fish')"
+                    :disabled="isRunning || selectedTokens.length === 0"
+                  >
+                    批量钓鱼
+                  </n-button>
+                  <n-icon class="favorite-icon" :class="{ active: isFavorite('openHelperModal_fish') }" @click="toggleFavorite('openHelperModal_fish')">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" :fill="isFavorite('openHelperModal_fish') ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                  </n-icon>
+                </div>
+                <div class="task-button-wrapper">
+                  <n-button
+                    size="small"
+                    @click="openHelperModal('recruit')"
+                    :disabled="isRunning || selectedTokens.length === 0"
+                  >
+                    批量招募
+                  </n-button>
+                  <n-icon class="favorite-icon" :class="{ active: isFavorite('openHelperModal_recruit') }" @click="toggleFavorite('openHelperModal_recruit')">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" :fill="isFavorite('openHelperModal_recruit') ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                  </n-icon>
+                </div>
+                <div class="task-button-wrapper">
+                  <n-button
+                    size="small"
+                    @click="batchHeroUpgrade"
+                    :disabled="isRunning || selectedTokens.length === 0"
+                  >
+                    一键英雄升星
+                  </n-button>
+                  <n-icon class="favorite-icon" :class="{ active: isFavorite('batchHeroUpgrade') }" @click="toggleFavorite('batchHeroUpgrade')">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" :fill="isFavorite('batchHeroUpgrade') ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                  </n-icon>
+                </div>
+                <div class="task-button-wrapper">
+                  <n-button
+                    size="small"
+                    @click="batchBookUpgrade"
+                    :disabled="isRunning || selectedTokens.length === 0"
+                  >
+                    一键图鉴升星
+                  </n-button>
+                  <n-icon class="favorite-icon" :class="{ active: isFavorite('batchBookUpgrade') }" @click="toggleFavorite('batchBookUpgrade')">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" :fill="isFavorite('batchBookUpgrade') ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                  </n-icon>
+                </div>
+                <div class="task-button-wrapper">
+                  <n-button
+                    size="small"
+                    @click="batchClaimStarRewards"
+                    :disabled="isRunning || selectedTokens.length === 0"
+                  >
+                    一键领取图鉴奖励
+                  </n-button>
+                  <n-icon class="favorite-icon" :class="{ active: isFavorite('batchClaimStarRewards') }" @click="toggleFavorite('batchClaimStarRewards')">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" :fill="isFavorite('batchClaimStarRewards') ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                  </n-icon>
+                </div>
+                <div class="task-button-wrapper">
+                  <n-button
+                    size="small"
+                    @click="legion_storebuygoods"
+                    :disabled="isRunning || selectedTokens.length === 0"
+                  >
+                    一键购买四圣碎片
+                  </n-button>
+                  <n-icon class="favorite-icon" :class="{ active: isFavorite('legion_storebuygoods') }" @click="toggleFavorite('legion_storebuygoods')">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" :fill="isFavorite('legion_storebuygoods') ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                  </n-icon>
+                </div>
+                <div class="task-button-wrapper">
+                  <n-button
+                    size="small"
+                    @click="legionStoreBuySkinCoins"
+                    :disabled="isRunning || selectedTokens.length === 0"
+                  >
+                    一键购买俱乐部5皮肤币
+                  </n-button>
+                  <n-icon class="favorite-icon" :class="{ active: isFavorite('legionStoreBuySkinCoins') }" @click="toggleFavorite('legionStoreBuySkinCoins')">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" :fill="isFavorite('legionStoreBuySkinCoins') ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                  </n-icon>
+                </div>
               </n-space>
             </n-tab-pane>
             <n-tab-pane name="legacy" tab="功法">
               <n-space>
-                <n-button
-                  size="small"
-                  @click="batchLegacyClaim"
-                  :disabled="isRunning || selectedTokens.length === 0"
-                >
-                  批量功法残卷领取
-                </n-button>
-                <n-button
-                  size="small"
-                  @click="showLegacyGiftModal = true"
-                  :disabled="isRunning || selectedTokens.length === 0"
-                >
-                  批量功法残卷赠送
-                </n-button>
+                <div class="task-button-wrapper">
+                  <n-button
+                    size="small"
+                    @click="batchLegacyClaim"
+                    :disabled="isRunning || selectedTokens.length === 0"
+                  >
+                    批量功法残卷领取
+                  </n-button>
+                  <n-icon class="favorite-icon" :class="{ active: isFavorite('batchLegacyClaim') }" @click="toggleFavorite('batchLegacyClaim')">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" :fill="isFavorite('batchLegacyClaim') ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                  </n-icon>
+                </div>
+                <div class="task-button-wrapper">
+                  <n-button
+                    size="small"
+                    @click="showLegacyGiftModal = true"
+                    :disabled="isRunning || selectedTokens.length === 0"
+                  >
+                    批量功法残卷赠送
+                  </n-button>
+                  <n-icon class="favorite-icon" :class="{ active: isFavorite('showLegacyGiftModal') }" @click="toggleFavorite('showLegacyGiftModal')">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" :fill="isFavorite('showLegacyGiftModal') ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                  </n-icon>
+                </div>
               </n-space>
             </n-tab-pane>
             <n-tab-pane name="monthly" tab="月度">
               <n-space>
-                <n-button
-                  size="small"
-                  @click="batchTopUpFish"
-                  :disabled="isRunning || selectedTokens.length === 0"
-                >
-                  一键钓鱼补齐
-                </n-button>
-                <n-button
-                  size="small"
-                  @click="batchTopUpArena"
-                  :disabled="
-                    isRunning || selectedTokens.length === 0 || !isarenaActivityOpen
-                  "
-                >
-                  一键竞技场补齐
-                </n-button>
-                <n-button
-                  size="small"
-                  @click="openWarGuessModal"
-                  :disabled="isRunning || selectedTokens.length === 0 || !isWarGuessActivityOpen"
-                  :title="isWarGuessActivityOpen ? '' : warGuessActivityTip"
-                >
-                  月赛助威
-                </n-button>
+                <div class="task-button-wrapper">
+                  <n-button
+                    size="small"
+                    @click="batchTopUpFish"
+                    :disabled="isRunning || selectedTokens.length === 0"
+                  >
+                    一键钓鱼补齐
+                  </n-button>
+                  <n-icon class="favorite-icon" :class="{ active: isFavorite('batchTopUpFish') }" @click="toggleFavorite('batchTopUpFish')">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" :fill="isFavorite('batchTopUpFish') ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                  </n-icon>
+                </div>
+                <div class="task-button-wrapper">
+                  <n-button
+                    size="small"
+                    @click="batchTopUpArena"
+                    :disabled="
+                      isRunning || selectedTokens.length === 0 || !isarenaActivityOpen
+                    "
+                  >
+                    一键竞技场补齐
+                  </n-button>
+                  <n-icon class="favorite-icon" :class="{ active: isFavorite('batchTopUpArena') }" @click="toggleFavorite('batchTopUpArena')">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" :fill="isFavorite('batchTopUpArena') ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                  </n-icon>
+                </div>
+                <div class="task-button-wrapper">
+                  <n-button
+                    size="small"
+                    @click="openWarGuessModal"
+                    :disabled="isRunning || selectedTokens.length === 0 || !isWarGuessActivityOpen"
+                    :title="isWarGuessActivityOpen ? '' : warGuessActivityTip"
+                  >
+                    月赛助威
+                  </n-button>
+                  <n-icon class="favorite-icon" :class="{ active: isFavorite('openWarGuessModal') }" @click="toggleFavorite('openWarGuessModal')">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" :fill="isFavorite('openWarGuessModal') ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                  </n-icon>
+                </div>
               </n-space>
             </n-tab-pane>
           </n-tabs>
@@ -2773,7 +3060,109 @@ const taskTemplates = ref([]);
 const selectedTemplateId = ref(null);
 const selectedTokensForApply = ref([]);
 const currentTemplateName = ref("");
-const currentTemplateId = ref(null); // 用于编辑现有模板
+const currentTemplateId = ref(null);
+
+// =====================
+// 收藏功能状态
+// =====================
+const allTaskButtons = [
+  { id: "claimHangUpRewards", label: "领取挂机", tab: "daily", action: "claimHangUpRewards" },
+  { id: "batchAddHangUpTime", label: "一键加钟", tab: "daily", action: "batchAddHangUpTime" },
+  { id: "resetBottles", label: "重置罐子", tab: "daily", action: "resetBottles" },
+  { id: "batchlingguanzi", label: "一键领取罐子", tab: "daily", action: "batchlingguanzi" },
+  { id: "batchclubsign", label: "一键俱乐部签到", tab: "daily", action: "batchclubsign" },
+  { id: "batchStudy", label: "一键答题", tab: "daily", action: "batchStudy" },
+  { id: "batcharenafight", label: "一键竞技场战斗3次", tab: "daily", action: "batcharenafight", activityCheck: "isarenaActivityOpen" },
+  { id: "batchSmartSendCar", label: "智能发车", tab: "daily", action: "batchSmartSendCar", activityCheck: "isCarActivityOpen" },
+  { id: "batchClaimCars", label: "一键收车", tab: "daily", action: "batchClaimCars", activityCheck: "isCarActivityOpen" },
+  { id: "store_purchase", label: "一键黑市采购", tab: "daily", action: "store_purchase" },
+  { id: "collection_claimfreereward", label: "一键领取珍宝阁", tab: "daily", action: "collection_claimfreereward" },
+  { id: "batchGenieSweep", label: "一键灯神扫荡", tab: "daily", action: "batchGenieSweep" },
+  { id: "climbTower", label: "一键爬塔", tab: "dungeon", action: "climbTower" },
+  { id: "batchmengjing", label: "一键梦境", tab: "dungeon", action: "batchmengjing", activityCheck: "ismengjingActivityOpen" },
+  { id: "skinChallenge", label: "一键换皮闯关", tab: "dungeon", action: "skinChallenge" },
+  { id: "batchClaimPeachTasks", label: "一键领取蟠桃园任务", tab: "dungeon", action: "batchClaimPeachTasks" },
+  { id: "batchBuyDreamItems", label: "一键购买梦境商品", tab: "dungeon", action: "batchBuyDreamItems", activityCheck: "ismengjingActivityOpen" },
+  { id: "batchbaoku13", label: "一键宝库前3层", tab: "baoku", action: "batchbaoku13", activityCheck: "isbaokuActivityOpen" },
+  { id: "batchbaoku45", label: "一键宝库4,5层", tab: "baoku", action: "batchbaoku45", activityCheck: "isbaokuActivityOpen" },
+  { id: "climbWeirdTower", label: "一键爬怪异塔", tab: "weirdTower", action: "climbWeirdTower", activityCheck: "isWeirdTowerActivityOpen" },
+  { id: "batchUseItems", label: "一键使用怪异塔道具", tab: "weirdTower", action: "batchUseItems", activityCheck: "isWeirdTowerActivityOpen" },
+  { id: "batchMergeItems", label: "一键怪异塔合成", tab: "weirdTower", action: "batchMergeItems", activityCheck: "isWeirdTowerActivityOpen" },
+  { id: "batchClaimFreeEnergy", label: "一键领取怪异塔免费道具", tab: "weirdTower", action: "batchClaimFreeEnergy", activityCheck: "isWeirdTowerActivityOpen" },
+  { id: "openHelperModal_box", label: "批量开箱", tab: "resource", action: "openHelperModal", actionArg: "box" },
+  { id: "openHelperModal_pointsBox", label: "按积分开箱", tab: "resource", action: "openHelperModal", actionArg: "pointsBox" },
+  { id: "batchClaimBoxPointReward", label: "领取宝箱积分", tab: "resource", action: "batchClaimBoxPointReward" },
+  { id: "openHelperModal_fish", label: "批量钓鱼", tab: "resource", action: "openHelperModal", actionArg: "fish" },
+  { id: "openHelperModal_recruit", label: "批量招募", tab: "resource", action: "openHelperModal", actionArg: "recruit" },
+  { id: "batchHeroUpgrade", label: "一键英雄升星", tab: "resource", action: "batchHeroUpgrade" },
+  { id: "batchBookUpgrade", label: "一键图鉴升星", tab: "resource", action: "batchBookUpgrade" },
+  { id: "batchClaimStarRewards", label: "一键领取图鉴奖励", tab: "resource", action: "batchClaimStarRewards" },
+  { id: "legion_storebuygoods", label: "一键购买四圣碎片", tab: "resource", action: "legion_storebuygoods" },
+  { id: "legionStoreBuySkinCoins", label: "一键购买俱乐部5皮肤币", tab: "resource", action: "legionStoreBuySkinCoins" },
+  { id: "batchLegacyClaim", label: "批量功法残卷领取", tab: "legacy", action: "batchLegacyClaim" },
+  { id: "showLegacyGiftModal", label: "批量功法残卷赠送", tab: "legacy", action: "showLegacyGiftModal", isModal: true },
+  { id: "batchTopUpFish", label: "一键钓鱼补齐", tab: "monthly", action: "batchTopUpFish" },
+  { id: "batchTopUpArena", label: "一键竞技场补齐", tab: "monthly", action: "batchTopUpArena", activityCheck: "isarenaActivityOpen" },
+  { id: "openWarGuessModal", label: "月赛助威", tab: "monthly", action: "openWarGuessModal", activityCheck: "isWarGuessActivityOpen" },
+];
+
+const favoriteTaskIds = ref([]);
+
+const loadFavorites = async () => {
+  try {
+    const result = await apiService.getFavoriteTasks();
+    if (result.success) {
+      favoriteTaskIds.value = result.data || [];
+    }
+  } catch (e) {
+    console.warn("加载收藏数据失败:", e);
+    favoriteTaskIds.value = [];
+  }
+};
+
+const saveFavorites = async () => {
+  try {
+    await apiService.saveFavoriteTasks(favoriteTaskIds.value);
+  } catch (e) {
+    console.warn("保存收藏数据失败:", e);
+  }
+};
+
+const toggleFavorite = async (taskId) => {
+  const index = favoriteTaskIds.value.indexOf(taskId);
+  if (index === -1) {
+    favoriteTaskIds.value.push(taskId);
+  } else {
+    favoriteTaskIds.value.splice(index, 1);
+  }
+  await saveFavorites();
+};
+
+const isFavorite = (taskId) => {
+  return favoriteTaskIds.value.includes(taskId);
+};
+
+const favoriteTasks = computed(() => {
+  return allTaskButtons.filter((task) => favoriteTaskIds.value.includes(task.id));
+});
+
+const executeFavoriteTask = (task) => {
+  if (task.isModal) {
+    if (task.action === "showLegacyGiftModal") {
+      showLegacyGiftModal.value = true;
+    }
+  } else if (task.actionArg) {
+    if (task.action === "openHelperModal") {
+      openHelperModal(task.actionArg);
+    }
+  } else {
+    const actionFn = eval(task.action);
+    if (typeof actionFn === "function") {
+      actionFn();
+    }
+  }
+};
+
 const currentTemplate = reactive({
   arenaFormation: 1,
   towerFormation: 1,
@@ -3505,8 +3894,12 @@ const exportConfig = async () => {
     const groupsResult = await apiService.getTokenGroups();
     const tokenGroupsList = groupsResult.success ? (groupsResult.data || []) : [];
 
+    // 获取收藏任务
+    const favoritesResult = await apiService.getFavoriteTasks();
+    const favoriteTasksList = favoritesResult.success ? (favoritesResult.data || []) : [];
+
     const exportData = {
-      version: "1.4",
+      version: "1.5",
       exportTime: new Date().toISOString(),
       tokens: tokens.value.map((t) => ({
         id: t.id,
@@ -3534,6 +3927,7 @@ const exportConfig = async () => {
         createdAt: g.created_at || g.createdAt,
         updatedAt: g.updated_at || g.updatedAt,
       })),
+      favoriteTasks: favoriteTasksList,
     };
 
     const blob = new Blob([JSON.stringify(exportData, null, 2)], {
@@ -3744,12 +4138,29 @@ const importConfig = async ({ file }) => {
           localStorage.setItem("tokenGroups", JSON.stringify(tokenGroups.value));
         }
 
+        // Import favorite tasks
+        let importedFavorites = 0;
+        if (Array.isArray(importData.favoriteTasks)) {
+          const existingFavorites = favoriteTaskIds.value;
+          importData.favoriteTasks.forEach((taskId) => {
+            if (!existingFavorites.includes(taskId)) {
+              existingFavorites.push(taskId);
+              importedFavorites++;
+            }
+          });
+          favoriteTaskIds.value = existingFavorites;
+          await saveFavorites();
+        }
+
         let successMsg = `导入成功: ${importedTokens} 个新账号, ${importedTasks} 个新定时任务`;
         if (importedTemplates > 0) {
           successMsg += `, ${importedTemplates} 个新任务模板`;
         }
         if (importedGroups > 0) {
           successMsg += `, ${importedGroups} 个分组`;
+        }
+        if (importedFavorites > 0) {
+          successMsg += `, ${importedFavorites} 个收藏任务`;
         }
         if (skippedTokens > 0) {
           successMsg += ` (跳过 ${skippedTokens} 个重复账号)`;
@@ -4030,6 +4441,8 @@ onMounted(() => {
   loadTaskTemplates();
   // 加载所有账号配置到缓存
   loadAllTokenSettings();
+  // 加载收藏任务
+  loadFavorites();
 });
 
 // Cleanup countdown interval on unmount
@@ -5685,6 +6098,30 @@ const stopBatch = () => {
   gap: 12px;
   justify-content: flex-end;
   flex-wrap: nowrap;
+}
+
+/* Favorite Icon Styles */
+.task-button-wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.favorite-icon {
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+  color: #d9d9d9;
+  transition: color 0.2s, transform 0.2s;
+}
+
+.favorite-icon:hover {
+  color: #faad14;
+  transform: scale(1.2);
+}
+
+.favorite-icon.active {
+  color: #faad14;
 }
 
 /* Cron Parser Styles */
