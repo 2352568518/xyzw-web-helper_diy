@@ -163,6 +163,7 @@ export class DailyTaskRunner {
         claimHangUp: true,
         claimEmail: true,
         blackMarketPurchase: true,
+        legionSignin: true,
       };
       return raw ? { ...defaultSettings, ...JSON.parse(raw) } : defaultSettings;
     } catch (error) {
@@ -487,16 +488,24 @@ export class DailyTaskRunner {
     // 4. 固定奖励
     const fixedRewards = [
       { name: "福利签到", cmd: "system_signinreward" },
-      { name: "俱乐部", cmd: "legion_signin" },
       { name: "领取每日礼包", cmd: "discount_claimreward" },
       { name: "领取每日免费奖励", cmd: "collection_claimfreereward" },
       { name: "领取免费礼包", cmd: "card_claimreward" },
+      {
+        name: "领取月卡奖励",
+        cmd: "card_claimreward",
+        params: { cardId: 4002 },
+      },
       {
         name: "领取永久卡礼包",
         cmd: "card_claimreward",
         params: { cardId: 4003 },
       },
     ];
+
+    if (settings.legionSignin !== false) {
+      fixedRewards.splice(1, 0, { name: "俱乐部", cmd: "legion_signin" });
+    }
 
     if (settings.claimEmail) {
       fixedRewards.push({

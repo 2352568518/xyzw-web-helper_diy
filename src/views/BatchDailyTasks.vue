@@ -1046,6 +1046,10 @@
               <span class="switch-label">付费招募</span
               ><n-switch v-model:value="currentSettings.payRecruit" />
             </div>
+            <div class="switch-row">
+              <span class="switch-label">俱乐部签到</span
+              ><n-switch v-model:value="currentSettings.legionSignin" />
+            </div>
           </div>
         </div>
         <div class="modal-actions" style="margin-top: 20px; text-align: right">
@@ -1131,6 +1135,10 @@
             <div class="switch-row">
               <span class="switch-label">付费招募</span
               ><n-switch v-model:value="currentTemplate.payRecruit" />
+            </div>
+            <div class="switch-row">
+              <span class="switch-label">俱乐部签到</span
+              ><n-switch v-model:value="currentTemplate.legionSignin" />
             </div>
           </div>
         </div>
@@ -3046,6 +3054,7 @@ const currentSettings = reactive({
   claimHangUp: true,
   claimEmail: true,
   blackMarketPurchase: true,
+  legionSignin: true,
 });
 
 // 账号配置缓存 - 页面加载时从后端获取，执行任务时直接使用缓存
@@ -3175,6 +3184,7 @@ const currentTemplate = reactive({
   claimHangUp: true,
   claimEmail: true,
   blackMarketPurchase: true,
+  legionSignin: true,
 });
 
 // Account Template References
@@ -3899,7 +3909,7 @@ const exportConfig = async () => {
     const favoriteTasksList = favoritesResult.success ? (favoritesResult.data || []) : [];
 
     const exportData = {
-      version: "1.5",
+      version: "1.6",
       exportTime: new Date().toISOString(),
       tokens: tokens.value.map((t) => ({
         id: t.id,
@@ -5110,6 +5120,7 @@ const loadSettingsFromAPI = async (tokenId) => {
       claimHangUp: true,
       claimEmail: true,
       blackMarketPurchase: true,
+      legionSignin: true,
     };
     
     const result = await apiService.getTokenSettings(tokenId);
@@ -5166,6 +5177,7 @@ const openTaskTemplateModal = async () => {
     claimHangUp: true,
     claimEmail: true,
     blackMarketPurchase: true,
+    legionSignin: true,
   });
   currentTemplateName.value = "";
   showTaskTemplateModal.value = true;
