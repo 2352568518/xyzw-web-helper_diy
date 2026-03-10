@@ -280,27 +280,32 @@ const gameFeaturesMenuOptions = computed(() => {
     }));
   }
   
-  return groups.map(group => ({
-    label: group.name,
-    key: `group_${group.id}`,
-    children: group.tokenIds
-      .filter(id => tokens.find(t => t.id === id))
-      .map(tokenId => {
-        const token = tokens.find(t => t.id === tokenId);
-        return {
-          label: () => h('div', { style: { display: 'flex', alignItems: 'center', gap: '8px' } }, [
-            h(NAvatar, { 
-              src: token.avatar || '/icons/xiaoyugan.png', 
-              size: 'small',
-              fallbackSrc: '/icons/xiaoyugan.png'
-            }),
-            h('span', token.name),
-            token.server ? h(NText, { depth: 3, style: { fontSize: '12px' } }, () => `[${token.server}]`) : null
-          ]),
-          key: token.id,
-        };
-      })
-  }));
+  return groups.map(group => {
+    const groupTokens = group.tokenIds
+      .map(id => tokens.find(t => t.id === id))
+      .filter(Boolean);
+    
+    if (groupTokens.length === 0) {
+      return null;
+    }
+    
+    return {
+      label: group.name,
+      key: `group_${group.id}`,
+      children: groupTokens.map(token => ({
+        label: () => h('div', { style: { display: 'flex', alignItems: 'center', gap: '8px' } }, [
+          h(NAvatar, { 
+            src: token.avatar || '/icons/xiaoyugan.png', 
+            size: 'small',
+            fallbackSrc: '/icons/xiaoyugan.png'
+          }),
+          h('span', token.name),
+          token.server ? h(NText, { depth: 3, style: { fontSize: '12px' } }, () => `[${token.server}]`) : null
+        ]),
+        key: token.id,
+      }))
+    };
+  }).filter(Boolean);
 });
 
 const handleTokenSelect = (key) => {

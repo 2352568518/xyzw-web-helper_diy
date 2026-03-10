@@ -24,16 +24,30 @@
             </n-icon>
             <span>首页</span>
           </router-link>
-          <router-link
-            to="/admin/game-features"
-            class="nav-item"
-            active-class="active"
+          
+          <!-- 游戏功能 - 带分组下拉菜单 -->
+          <n-dropdown
+            :options="gameFeaturesMenuOptions"
+            @select="handleTokenSelect"
+            trigger="hover"
+            placement="bottom-start"
           >
-            <n-icon>
-              <Cube />
-            </n-icon>
-            <span>游戏功能</span>
-          </router-link>
+            <router-link
+              to="/admin/game-features"
+              class="nav-item"
+              active-class="active"
+              @click.prevent
+            >
+              <n-icon>
+                <Cube />
+              </n-icon>
+              <span>游戏功能</span>
+              <n-icon size="small">
+                <ChevronDown />
+              </n-icon>
+            </router-link>
+          </n-dropdown>
+          
           <router-link to="/tokens" class="nav-item" active-class="active">
             <n-icon>
               <PersonCircle />
@@ -719,6 +733,7 @@
             </n-space>
           </n-card>
         </div>
+        </div>
       </div>
 
       <!-- 空状态 -->
@@ -850,7 +865,7 @@ import BinTokenForm from "./bin.vue";
 import singleBinTokenForm from "./singlebin.vue";
 import WxQrcodeForm from "./wxqrcode.vue";
 
-import { useTokenStore, selectedTokenId, tokenGroups } from "@/stores/tokenStore";
+import { useTokenStore, selectedTokenId, tokenGroups, gameTokens } from "@/stores/tokenStore";
 import {
   Add,
   Copy,
@@ -873,8 +888,9 @@ import {
   Time,
   Cube,
   ChatbubbleEllipsesSharp,
+  ChevronDown,
 } from "@vicons/ionicons5";
-import { NIcon, useDialog, useMessage } from "naive-ui";
+import { NIcon, useDialog, useMessage, NAvatar, NText } from "naive-ui";
 import apiService from "@/services/apiService";
 import { computed, h, onMounted, reactive, ref, watch } from "vue";
 import { useRouter } from "vue-router";
@@ -884,6 +900,65 @@ import ThemeToggle from "@/components/Common/ThemeToggle.vue";
 const { getArrayBuffer, storeArrayBuffer, deleteArrayBuffer, clearAll } = useIndexedDB();
 
 const isMobileMenuOpen = ref(false);
+
+// 游戏功能下拉菜单选项
+const gameFeaturesMenuOptions = computed(() => {
+  const groups = tokenGroups.value || [];
+  const tokens = gameTokens.value || [];
+  
+  if (groups.length === 0) {
+    return tokens.map(token => ({
+      label: () => h('div', { style: { display: 'flex', alignItems: 'center', gap: '8px' } }, [
+        h(NAvatar, { 
+          src: token.avatar || '/icons/xiaoyugan.png', 
+          size: 'small',
+          fallbackSrc: '/icons/xiaoyugan.png'
+        }),
+        h('span', token.name),
+        token.server ? h(NText, { depth: 3, style: { fontSize: '12px' } }, () => `[${token.server}]`) : null
+      ]),
+      key: token.id,
+    }));
+  }
+  
+  return groups.map(group => {
+    const groupTokens = group.tokenIds
+      .map(id => tokens.find(t => t.id === id))
+      .filter(Boolean);
+    
+    if (groupTokens.length === 0) {
+      return null;
+    }
+    
+    return {
+      label: group.name,
+      key: `group_${group.id}`,
+      children: groupTokens.map(token => ({
+        label: () => h('div', { style: { display: 'flex', alignItems: 'center', gap: '8px' } }, [
+          h(NAvatar, { 
+            src: token.avatar || '/icons/xiaoyugan.png', 
+            size: 'small',
+            fallbackSrc: '/icons/xiaoyugan.png'
+          }),
+          h('span', token.name),
+          token.server ? h(NText, { depth: 3, style: { fontSize: '12px' } }, () => `[${token.server}]`) : null
+        ]),
+        key: token.id,
+      }))
+    };
+  }).filter(Boolean);
+});
+
+const handleTokenSelect = (key) => {
+  if (key.startsWith('group_')) return;
+  
+  const token = gameTokens.value.find(t => t.id === key);
+  if (token) {
+    tokenStore.selectToken(key);
+    message.success(`已切换到: ${token.name}`);
+    router.push('/admin/game-features');
+  }
+};
 
 // 接收路由参数
 const props = defineProps({
@@ -2226,6 +2301,8 @@ onMounted(async () => {
   min-height: 100vh;
   background: var(--bg-secondary);
   padding: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 /* 深色主题下的页面背景 */
@@ -2366,9 +2443,11 @@ onMounted(async () => {
 }
 
 .container {
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
   padding: var(--spacing-xl) var(--spacing-lg);
+  flex: 1;
+  width: 100%;
 }
 
 .import-section {
@@ -2533,6 +2612,25 @@ onMounted(async () => {
   flex: 1;
 }
 
+.tokens-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
+  padding: var(--spacing-md);
+  background: var(--bg-primary);
+  border-radius: var(--border-radius-large);
+  border: 1px solid var(--border-light);
+}
+
+.tokens-list-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
  .tokens-section {
   background: transparent;
   border-radius: 0;
@@ -2588,11 +2686,7 @@ onMounted(async () => {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
   gap: var(--spacing-lg);
-  overflow-y: auto;
   padding-right: var(--spacing-sm);
-  scrollbar-width: thin;
-  scrollbar-color: var(--border-medium) var(--bg-tertiary);
-  flex: 1;
 
   &::-webkit-scrollbar {
     width: 6px;
