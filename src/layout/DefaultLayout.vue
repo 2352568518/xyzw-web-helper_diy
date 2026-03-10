@@ -309,17 +309,28 @@ const gameFeaturesMenuOptions = computed(() => {
 });
 
 const handleTokenSelect = (key) => {
-  if (key.startsWith('group_')) return;
+  console.log('handleTokenSelect called with key:', key);
   
-  // key 格式: group_abc123_tokenId 或 tokenId
+  if (key.startsWith('group_')) {
+    console.log('Skipping group click');
+    return;
+  }
+  
+  // key 格式: groupId_tokenId 或 tokenId
   const lastUnderscoreIndex = key.lastIndexOf('_');
   const tokenId = lastUnderscoreIndex === -1 ? key : key.slice(lastUnderscoreIndex + 1);
   
+  console.log('Parsed tokenId:', tokenId);
+  
   const token = gameTokens.value.find(t => t.id === tokenId);
+  console.log('Found token:', token);
+  
   if (token) {
     tokenStore.selectToken(tokenId);
     message.success(`已切换到: ${token.name}`);
     router.push('/admin/game-features');
+  } else {
+    console.log('Token not found, available tokens:', gameTokens.value.map(t => t.id));
   }
 };
 
