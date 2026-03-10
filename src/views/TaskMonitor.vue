@@ -906,26 +906,46 @@ const loadingMore = ref(false);
 
 const filterTaskId = ref(null);
 
+// 计算任务的下次执行时间
+const calculateTaskNextRun = (task) => {
+  if (!task.is_active) return null;
+  
+  const now = new Date();
+  now.setSeconds(0, 0);
+  
+  if (task.run_type === 'daily' && task.run_time) {
+    const [hours, minutes] = task.run_time.split(':').map(Number);
+    const nextRun = new Date(now);
+    nextRun.setHours(hours, minutes, 0, 0);
+    if (nextRun <= now) {
+      nextRun.setDate(nextRun.getDate() + 1);
+    }
+    return nextRun.getTime();
+  } else if (task.run_type === 'cron' && task.cron_expression) {
+    const nextRun = calculateNextCronRun(task.cron_expression);
+    return nextRun ? nextRun.getTime() : null;
+  } else if (task.run_times && task.run_times.length > 0) {
+    const runTimes = task.run_times.map(t => {
+      const [hours, minutes] = t.split(':').map(Number);
+      const date = new Date(now);
+      date.setHours(hours, minutes, 0, 0);
+      if (date.getTime() < now.getTime()) {
+        date.setDate(date.getDate() + 1);
+      }
+      return date.getTime();
+    });
+    return Math.min(...runTimes);
+  }
+  
+  return null;
+};
+
 // 排序后的任务列表：活跃任务按下次执行时间排序，暂停任务排在后面
 const sortedTasks = computed(() => {
-  const now = Date.now();
-  
-  const tasksWithNextRun = tasks.value.map(task => {
-    let nextRun = null;
-    if (task.is_active && task.run_times && task.run_times.length > 0) {
-      const runTimes = task.run_times.map(t => {
-        const [hours, minutes] = t.split(':').map(Number);
-        const date = new Date();
-        date.setHours(hours, minutes, 0, 0);
-        if (date.getTime() < now) {
-          date.setDate(date.getDate() + 1);
-        }
-        return date.getTime();
-      });
-      nextRun = Math.min(...runTimes);
-    }
-    return { ...task, nextRunTime: nextRun };
-  });
+  const tasksWithNextRun = tasks.value.map(task => ({
+    ...task,
+    nextRunTime: calculateTaskNextRun(task)
+  }));
   
   return tasksWithNextRun.sort((a, b) => {
     // 活跃任务排在前面

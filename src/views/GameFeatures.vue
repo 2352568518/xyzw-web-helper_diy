@@ -44,7 +44,7 @@
               >
                 <n-avatar
                   :src="token.avatar || '/icons/xiaoyugan.png'"
-                  size="medium"
+                  size="small"
                   fallback-src="/icons/xiaoyugan.png"
                 />
                 <div class="token-info">
@@ -65,7 +65,7 @@
                   <template v-if="getTokenById(tokenId)">
                     <n-avatar
                       :src="getTokenById(tokenId).avatar || '/icons/xiaoyugan.png'"
-                      size="medium"
+                      size="small"
                       fallback-src="/icons/xiaoyugan.png"
                     />
                     <div class="token-info">
@@ -543,22 +543,21 @@ onUnmounted(() => {
 // Token选择网格
 .token-select-grid {
   margin-top: var(--spacing-lg);
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: var(--spacing-sm);
-  max-height: 500px;
-  overflow-y: auto;
-  padding: var(--spacing-sm);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs);
+  padding: 0;
 }
 
 .group-header {
-  grid-column: 1 / -1;
+  width: 100%;
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-semibold);
-  color: var(--text-secondary);
-  padding: var(--spacing-xs) 0;
-  margin-top: var(--spacing-sm);
-  border-bottom: 1px solid var(--border-light);
+  color: var(--text-primary);
+  padding: var(--spacing-sm) var(--spacing-xs);
+  margin-top: var(--spacing-md);
+  background: var(--bg-tertiary);
+  border-radius: var(--border-radius-small);
   
   &:first-child {
     margin-top: 0;
@@ -567,43 +566,42 @@ onUnmounted(() => {
 
 .token-card {
   display: flex;
-  flex-direction: column;
   align-items: center;
   gap: var(--spacing-xs);
-  padding: var(--spacing-md);
-  border-radius: var(--border-radius-medium);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--border-radius-small);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
   background: var(--bg-secondary);
   border: 1px solid var(--border-light);
+  min-width: 120px;
   
   &:hover {
     background: var(--primary-color-light);
     border-color: var(--primary-color);
-    transform: translateY(-2px);
   }
   
   .token-info {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: 2px;
-    text-align: center;
+    gap: 0;
+    text-align: left;
+    overflow: hidden;
   }
   
   .token-name {
     font-weight: var(--font-weight-medium);
-    font-size: var(--font-size-sm);
+    font-size: var(--font-size-xs);
     color: var(--text-primary);
-    max-width: 140px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    max-width: 100px;
   }
   
   .token-server {
-    font-size: var(--font-size-xs);
-    color: var(--text-secondary);
+    font-size: 10px;
+    color: var(--text-tertiary);
   }
 }
 
