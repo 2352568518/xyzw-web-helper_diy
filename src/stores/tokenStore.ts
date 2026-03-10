@@ -60,6 +60,7 @@ declare interface TokenGroup {
   name: string;
   color: string; // 分组颜色，用于UI显示
   tokenIds: string[]; // 属于该分组的token ID列表
+  sortOrder?: number; // 分组排序顺序
   createdAt?: string;
   updatedAt?: string;
 }
@@ -1189,8 +1190,9 @@ export const useTokenStore = defineStore("tokens", () => {
   const exportTokens = () => {
     return {
       tokens: gameTokens.value,
+      groups: tokenGroups.value,
       exportedAt: new Date().toISOString(),
-      version: "2.0",
+      version: "2.1",
     };
   };
 
@@ -1198,9 +1200,15 @@ export const useTokenStore = defineStore("tokens", () => {
     try {
       if (data.tokens && Array.isArray(data.tokens)) {
         gameTokens.value = data.tokens;
+        
+        // 导入分组数据
+        if (data.groups && Array.isArray(data.groups)) {
+          tokenGroups.value = data.groups;
+        }
+        
         return {
           success: true,
-          message: `成功导入 ${data.tokens.length} 个Token`,
+          message: `成功导入 ${data.tokens.length} 个Token${data.groups ? `和 ${data.groups.length} 个分组` : ''}`,
         };
       } else {
         return { success: false, message: "导入数据格式错误" };

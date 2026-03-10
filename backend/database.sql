@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS tokens (
   avatar VARCHAR(255),
   is_active BOOLEAN DEFAULT true,
   sort_order INTEGER DEFAULT 0,
+  service_expiry TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -84,6 +85,7 @@ CREATE TABLE IF NOT EXISTS token_groups (
   name VARCHAR(255) NOT NULL,
   color VARCHAR(50) DEFAULT '#1677ff',
   token_ids UUID[] DEFAULT '{}',
+  sort_order INTEGER DEFAULT 0,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -133,5 +135,21 @@ DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tokens' AND column_name = 'sort_order') THEN
     ALTER TABLE tokens ADD COLUMN sort_order INTEGER DEFAULT 0;
+  END IF;
+END $$;
+
+-- 如果tokens表已存在但没有service_expiry字段，则添加该字段
+DO $$ 
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tokens' AND column_name = 'service_expiry') THEN
+    ALTER TABLE tokens ADD COLUMN service_expiry TIMESTAMP WITH TIME ZONE;
+  END IF;
+END $$;
+
+-- 如果token_groups表已存在但没有sort_order字段，则添加该字段
+DO $$ 
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'token_groups' AND column_name = 'sort_order') THEN
+    ALTER TABLE token_groups ADD COLUMN sort_order INTEGER DEFAULT 0;
   END IF;
 END $$;

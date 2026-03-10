@@ -82,6 +82,7 @@ class TokenService {
         avatar: tokenData.avatar || '',
         is_active: tokenData.is_active !== false,
         sort_order: tokenData.sort_order !== undefined ? tokenData.sort_order : maxOrder + 1,
+        service_expiry: tokenData.service_expiry || null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };

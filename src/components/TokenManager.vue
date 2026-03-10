@@ -131,7 +131,7 @@
 <script setup>
 import { ref, h } from "vue";
 import { useMessage, useDialog, NIcon } from "naive-ui";
-import { useTokenStore } from "@/stores/tokenStore";
+import { useTokenStore, tokenGroups } from "@/stores/tokenStore";
 import { useGameRolesStore } from "@/stores/gameRoles";
 import apiService from "@/services/apiService";
 import {
@@ -485,9 +485,10 @@ const exportTokens = async () => {
     const useBackend = await apiService.shouldUseBackend();
     
     let exportData = {
-      version: "2.0",
+      version: "2.1",
       exportedAt: new Date().toISOString(),
       tokens: [],
+      groups: [],
       tokenSettings: [],
       taskTemplates: [],
       scheduledTasks: [],
@@ -496,8 +497,9 @@ const exportTokens = async () => {
     
     if (useBackend) {
       // 从后端获取所有数据
-      const [tokensResult, settingsResult, templatesResult, tasksResult] = await Promise.all([
+      const [tokensResult, groupsResult, settingsResult, templatesResult, tasksResult] = await Promise.all([
         apiService.getTokens(),
+        apiService.getGroups(),
         apiService.getAllTokenSettings(),
         apiService.getTaskTemplates(),
         apiService.getTasks()
@@ -505,6 +507,9 @@ const exportTokens = async () => {
       
       // Token 列表
       exportData.tokens = tokensResult.success ? (tokensResult.data || []) : [];
+      
+      // 分组列表
+      exportData.groups = groupsResult.success ? (groupsResult.data || []) : [];
       
       // Token 设置
       exportData.tokenSettings = settingsResult.success ? (settingsResult.data || []) : [];
@@ -518,6 +523,7 @@ const exportTokens = async () => {
     } else {
       // 本地模式
       exportData.tokens = tokenStore.gameTokens || [];
+      exportData.groups = tokenGroups.value || [];
     }
     
     const dataStr = JSON.stringify(exportData, null, 2);
@@ -528,7 +534,7 @@ const exportTokens = async () => {
     link.download = `xyzw_full_backup_${new Date().toISOString().split("T")[0]}.json`;
     link.click();
 
-    message.success(`导出成功: ${exportData.tokens.length} 个Token, ${exportData.tokenSettings.length} 个设置, ${exportData.taskTemplates.length} 个模板, ${exportData.scheduledTasks.length} 个定时任务`);
+    message.success(`导出成功: ${exportData.tokens.length} 个Token, ${exportData.groups.length} 个分组, ${exportData.tokenSettings.length} 个设置, ${exportData.taskTemplates.length} 个模板, ${exportData.scheduledTasks.length} 个定时任务`);
   } catch (error) {
     console.error('导出失败:', error);
     message.error("导出失败: " + error.message);
@@ -749,6 +755,29 @@ const importTokens = async ({ file }) => {
           }
         }
         
+        // 5. 导入分组 (可选，旧版本可能没有)
+        let importedGroups = 0;
+        if (importData.groups && Array.isArray(importData.groups)) {
+          try {
+            // 转换分组数据格式
+            const groupsToImport = importData.groups.map(g => ({
+              id: g.id,
+              name: g.name,
+              color: g.color || '#1677ff',
+              token_ids: (g.tokenIds || g.token_ids || []).map(id => tokenIdMap.get(id) || id),
+              sort_order: g.sortOrder !== undefined ? g.sortOrder : (g.sort_order || 0)
+            }));
+            
+            // 批量保存分组
+            const result = await apiService.saveGroups(groupsToImport);
+            if (result.success) {
+              importedGroups = groupsToImport.length;
+            }
+          } catch (groupError) {
+            console.warn('导入分组失败:', groupError);
+          }
+        }
+        
         // 刷新 token 列表
         try {
           const tokensResult = await apiService.getTokens();
@@ -766,6 +795,8 @@ const importTokens = async ({ file }) => {
                 sourceUrl: token.source_url,
                 avatar: token.avatar,
                 isActive: token.is_active,
+                sortOrder: token.sort_order,
+                serviceExpiry: token.service_expiry,
                 createdAt: token.created_at,
                 updatedAt: token.updated_at
               });
@@ -775,8 +806,27 @@ const importTokens = async ({ file }) => {
           console.error('刷新Token列表失败:', refreshError);
         }
         
+        // 刷新分组列表
+        try {
+          const groupsResult = await apiService.getGroups();
+          if (groupsResult.success) {
+            tokenGroups.value = groupsResult.data.map(g => ({
+              id: g.id,
+              name: g.name,
+              color: g.color,
+              tokenIds: g.token_ids || [],
+              sortOrder: g.sort_order,
+              createdAt: g.created_at,
+              updatedAt: g.updated_at
+            }));
+          }
+        } catch (groupRefreshError) {
+          console.error('刷新分组列表失败:', groupRefreshError);
+        }
+        
         // 构建结果消息
         let resultMessage = `导入成功: ${importedTokens} 个Token`;
+        if (importedGroups > 0) resultMessage += `, ${importedGroups} 个分组`;
         if (importedSettings > 0) resultMessage += `, ${importedSettings} 个设置`;
         if (importedTemplates > 0) resultMessage += `, ${importedTemplates} 个模板`;
         if (importedTasks > 0) resultMessage += `, ${importedTasks} 个定时任务`;
