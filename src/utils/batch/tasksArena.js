@@ -178,6 +178,42 @@ export function createTasksArena(deps) {
           }
         }
         await new Promise((r) => setTimeout(r, delayConfig.battle));
+        
+        // 尝试领取通行证奖励
+        try {
+          const passResult = await tokenStore.sendMessageWithPromise(
+            tokenId,
+            "activity_recyclewarorderrewardclaim",
+            { actId: 1 },
+            5000,
+          );
+          if (passResult && passResult.errcode === 0) {
+            addLog({
+              time: new Date().toLocaleTimeString(),
+              message: `${token.name} 领取通行证奖励成功`,
+              type: "success",
+            });
+          } else if (passResult && passResult.errcode === 1001) {
+            addLog({
+              time: new Date().toLocaleTimeString(),
+              message: `${token.name} 暂无可领取的通行证奖励`,
+              type: "info",
+            });
+          } else {
+            addLog({
+              time: new Date().toLocaleTimeString(),
+              message: `${token.name} 领取通行证奖励: ${JSON.stringify(passResult)}`,
+              type: "info",
+            });
+          }
+        } catch (passErr) {
+          addLog({
+            time: new Date().toLocaleTimeString(),
+            message: `${token.name} 领取通行证奖励失败: ${passErr.message || "未知错误"}`,
+            type: "warning",
+          });
+        }
+        
         if (Isswitching) {
           await tokenStore.sendMessageWithPromise(
             tokenId,
