@@ -27,7 +27,6 @@
           
           <!-- 游戏功能 - 带分组下拉菜单 -->
           <n-dropdown
-            v-if="isGameFeaturesPage"
             :options="gameFeaturesMenuOptions"
             @select="handleTokenSelect"
             trigger="hover"
@@ -35,8 +34,8 @@
           >
             <router-link
               to="/admin/game-features"
-              class="nav-item active"
-              active-class="active"
+              class="nav-item"
+              :class="{ active: isGameFeaturesPage }"
               @click.prevent
             >
               <n-icon>
@@ -48,17 +47,6 @@
               </n-icon>
             </router-link>
           </n-dropdown>
-          <router-link
-            v-else
-            to="/admin/game-features"
-            class="nav-item"
-            active-class="active"
-          >
-            <n-icon>
-              <Cube />
-            </n-icon>
-            <span>游戏功能</span>
-          </router-link>
           
           <router-link to="/tokens" class="nav-item" active-class="active">
             <n-icon>

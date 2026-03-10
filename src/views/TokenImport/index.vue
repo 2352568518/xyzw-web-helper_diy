@@ -207,10 +207,10 @@
       </a-modal>
 
       <!-- Token列表 -->
-      <div v-if="tokenStore.hasTokens" class="tokens-section">
-        <div class="section-header">
-          <n-space align="center">
-            <h2>我的Token列表 ({{ tokenStore.gameTokens.length }}个)</h2>
+      <div v-if="tokenStore.hasTokens" class="tokens-content">
+        <!-- 工具栏 -->
+        <div class="tokens-toolbar">
+          <n-space align="center" wrap>
             <n-radio-group v-model:value="viewMode" size="small">
               <n-radio-button value="list">列表</n-radio-button>
               <n-radio-button value="card">卡片</n-radio-button>
@@ -249,7 +249,8 @@
               </n-button>
             </n-button-group>
           </n-space>
-          <div class="header-actions">
+
+          <n-space>
             <n-button type="success" @click="goToDashboard">
               <template #icon>
                 <n-icon>
@@ -282,8 +283,11 @@
                 批量操作
               </n-button>
             </n-dropdown>
-          </div>
+          </n-space>
         </div>
+
+        <!-- Token列表 -->
+        <div class="tokens-list-wrapper">
 
         <div class="tokens-grid" v-if="viewMode === 'card'">
           <a-card
@@ -2525,14 +2529,17 @@ onMounted(async () => {
   margin-top: var(--spacing-xl);
 }
 
-.tokens-section {
-  background: var(--bg-primary);
-  border-radius: var(--border-radius-xl);
-  padding: var(--spacing-xl);
-  box-shadow: var(--shadow-medium);
+.tokens-content {
+  flex: 1;
+}
+
+ .tokens-section {
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
   display: flex;
   flex-direction: column;
-  max-height: calc(100vh - var(--spacing-2xl) * 4);
 }
 
 /* 深色主题下的列表区域背景 */
