@@ -180,6 +180,11 @@ export function createTasksArena(deps) {
         await new Promise((r) => setTimeout(r, delayConfig.battle));
         
         // 尝试领取通行证奖励
+        addLog({
+          time: new Date().toLocaleTimeString(),
+          message: `${token.name} 正在尝试领取通行证奖励...`,
+          type: "info",
+        });
         try {
           const passResult = await tokenStore.sendMessageWithPromise(
             tokenId,
