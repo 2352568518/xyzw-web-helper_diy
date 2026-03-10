@@ -1193,7 +1193,7 @@ export const useTokenStore = defineStore("tokens", () => {
       tokens: gameTokens.value,
       groups: tokenGroups.value,
       exportedAt: new Date().toISOString(),
-      version: "2.1",
+      version: "2.2",
     };
   };
 

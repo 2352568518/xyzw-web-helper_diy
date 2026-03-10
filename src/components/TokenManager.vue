@@ -485,7 +485,7 @@ const exportTokens = async () => {
     const useBackend = await apiService.shouldUseBackend();
     
     let exportData = {
-      version: "2.1",
+      version: "2.2",
       exportedAt: new Date().toISOString(),
       tokens: [],
       groups: [],
@@ -505,11 +505,38 @@ const exportTokens = async () => {
         apiService.getTasks()
       ]);
       
-      // Token 列表
-      exportData.tokens = tokensResult.success ? (tokensResult.data || []) : [];
+      // Token 列表 - 转换为前端格式
+      if (tokensResult.success && tokensResult.data) {
+        exportData.tokens = tokensResult.data.map(token => ({
+          id: token.id,
+          name: token.name,
+          token: token.token,
+          wsUrl: token.ws_url,
+          server: token.server,
+          remark: token.remark,
+          importMethod: token.import_method,
+          sourceUrl: token.source_url,
+          avatar: token.avatar,
+          isActive: token.is_active,
+          sortOrder: token.sort_order,
+          serviceExpiry: token.service_expiry,
+          createdAt: token.created_at,
+          updatedAt: token.updated_at
+        }));
+      }
       
-      // 分组列表
-      exportData.groups = groupsResult.success ? (groupsResult.data || []) : [];
+      // 分组列表 - 转换为前端格式
+      if (groupsResult.success && groupsResult.data) {
+        exportData.groups = groupsResult.data.map(g => ({
+          id: g.id,
+          name: g.name,
+          color: g.color,
+          tokenIds: g.token_ids || [],
+          sortOrder: g.sort_order,
+          createdAt: g.created_at,
+          updatedAt: g.updated_at
+        }));
+      }
       
       // Token 设置
       exportData.tokenSettings = settingsResult.success ? (settingsResult.data || []) : [];

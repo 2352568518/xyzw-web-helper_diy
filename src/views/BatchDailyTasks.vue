@@ -3927,7 +3927,7 @@ const exportConfig = async () => {
     const favoriteTasksList = favoritesResult.success ? (favoritesResult.data || []) : [];
 
     const exportData = {
-      version: "1.6",
+      version: "1.7",
       exportTime: new Date().toISOString(),
       tokens: tokens.value.map((t) => ({
         id: t.id,
@@ -3939,6 +3939,7 @@ const exportConfig = async () => {
         importMethod: t.importMethod,
         sourceUrl: t.sourceUrl,
         sortOrder: t.sortOrder,
+        serviceExpiry: t.serviceExpiry,
         upgradedToPermanent: true,
         upgradedAt: t.upgradedAt,
         updatedAt: t.updatedAt,
@@ -3952,6 +3953,7 @@ const exportConfig = async () => {
         name: g.name,
         color: g.color,
         tokenIds: g.token_ids || g.tokenIds || [],
+        sortOrder: g.sort_order || g.sortOrder,
         createdAt: g.created_at || g.createdAt,
         updatedAt: g.updated_at || g.updatedAt,
       })),
@@ -5615,12 +5617,9 @@ const moveGroupUp = async (index) => {
   const currentGroup = groups[index];
   const prevGroup = groups[index - 1];
   
-  const currentOrder = currentGroup.sortOrder !== undefined ? currentGroup.sortOrder : index;
-  const prevOrder = prevGroup.sortOrder !== undefined ? prevGroup.sortOrder : index - 1;
-  
   await tokenStore.updateGroupsOrder([
-    { id: currentGroup.id, sortOrder: prevOrder },
-    { id: prevGroup.id, sortOrder: currentOrder }
+    { id: currentGroup.id, sortOrder: index - 1 },
+    { id: prevGroup.id, sortOrder: index }
   ]);
   
   message.success("分组顺序已更新");
@@ -5636,12 +5635,9 @@ const moveGroupDown = async (index) => {
   const currentGroup = groups[index];
   const nextGroup = groups[index + 1];
   
-  const currentOrder = currentGroup.sortOrder !== undefined ? currentGroup.sortOrder : index;
-  const nextOrder = nextGroup.sortOrder !== undefined ? nextGroup.sortOrder : index + 1;
-  
   await tokenStore.updateGroupsOrder([
-    { id: currentGroup.id, sortOrder: nextOrder },
-    { id: nextGroup.id, sortOrder: currentOrder }
+    { id: currentGroup.id, sortOrder: index + 1 },
+    { id: nextGroup.id, sortOrder: index }
   ]);
   
   message.success("分组顺序已更新");

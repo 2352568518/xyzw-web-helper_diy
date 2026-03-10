@@ -1042,16 +1042,26 @@ const getExpiryStatus = (token) => {
 
 const openExpiryModal = (token) => {
   editingExpiryToken.value = token;
-  expiryForm.serviceExpiry = token.serviceExpiry ? token.serviceExpiry.split("T")[0] : null;
+  if (token.serviceExpiry) {
+    const date = new Date(token.serviceExpiry);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    expiryForm.serviceExpiry = `${year}-${month}-${day}`;
+  } else {
+    expiryForm.serviceExpiry = null;
+  }
   showExpiryModal.value = true;
 };
 
 const saveExpiry = async () => {
   if (!editingExpiryToken.value) return;
   
-  const expiryDate = expiryForm.serviceExpiry 
-    ? new Date(expiryForm.serviceExpiry).toISOString() 
-    : null;
+  let expiryDate = null;
+  if (expiryForm.serviceExpiry) {
+    const [year, month, day] = expiryForm.serviceExpiry.split('-').map(Number);
+    expiryDate = new Date(Date.UTC(year, month - 1, day, 23, 59, 59)).toISOString();
+  }
   
   await tokenStore.updateToken(editingExpiryToken.value.id, {
     serviceExpiry: expiryDate,
