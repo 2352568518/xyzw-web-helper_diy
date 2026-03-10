@@ -1,29 +1,74 @@
 <template>
   <div class="token-import-page">
     <!-- 顶部导航栏 -->
-    <nav class="token-nav">
+    <nav class="dashboard-nav">
       <div class="nav-container">
         <div class="nav-brand">
           <img src="/icons/xiaoyugan.png" alt="XYZW" class="brand-logo" />
-          <span class="brand-text">XYZW 控制台</span>
+          <div class="brand-toggle" @click="isMobileMenuOpen = true">
+            <n-icon>
+              <Menu />
+            </n-icon>
+            <span class="brand-text">XYZW 控制台</span>
+          </div>
         </div>
 
         <div class="nav-menu">
-          <router-link to="/admin/dashboard" class="nav-item">
-            <n-icon><Home /></n-icon>
+          <router-link
+            to="/admin/dashboard"
+            class="nav-item"
+            active-class="active"
+          >
+            <n-icon>
+              <Home />
+            </n-icon>
             <span>首页</span>
           </router-link>
-          <router-link to="/tokens" class="nav-item active">
-            <n-icon><PersonCircle /></n-icon>
+          <router-link
+            to="/admin/game-features"
+            class="nav-item"
+            active-class="active"
+          >
+            <n-icon>
+              <Cube />
+            </n-icon>
+            <span>游戏功能</span>
+          </router-link>
+          <router-link to="/tokens" class="nav-item" active-class="active">
+            <n-icon>
+              <PersonCircle />
+            </n-icon>
             <span>Token管理</span>
           </router-link>
-          <router-link to="/admin/batch-daily-tasks" class="nav-item">
-            <n-icon><Layers /></n-icon>
+          <router-link
+            to="/admin/batch-daily-tasks"
+            class="nav-item"
+            active-class="active"
+          >
+            <n-icon>
+              <Layers />
+            </n-icon>
             <span>批量日常</span>
           </router-link>
-          <router-link to="/admin/task-monitor" class="nav-item">
-            <n-icon><TimeOutline /></n-icon>
+          <router-link
+            to="/admin/task-monitor"
+            class="nav-item"
+            active-class="active"
+          >
+            <n-icon>
+              <TimeOutline />
+            </n-icon>
             <span>任务监控</span>
+          </router-link>
+          <router-link
+            to="/admin/message-test"
+            class="nav-item"
+            active-class="active"
+          >
+            <n-icon>
+              <ChatbubbleEllipsesSharp />
+            </n-icon>
+            <span>消息测试</span>
           </router-link>
         </div>
 
@@ -32,6 +77,75 @@
         </div>
       </div>
     </nav>
+
+    <n-drawer
+      v-model:show="isMobileMenuOpen"
+      placement="left"
+      style="width: 260px"
+    >
+      <div class="drawer-menu">
+        <router-link
+          to="/admin/dashboard"
+          class="drawer-item"
+          @click="isMobileMenuOpen = false"
+        >
+          <n-icon>
+            <Home />
+          </n-icon>
+          <span>首页</span>
+        </router-link>
+        <router-link
+          to="/admin/game-features"
+          class="drawer-item"
+          @click="isMobileMenuOpen = false"
+        >
+          <n-icon>
+            <Cube />
+          </n-icon>
+          <span>游戏功能</span>
+        </router-link>
+        <router-link
+          to="/tokens"
+          class="drawer-item"
+          @click="isMobileMenuOpen = false"
+        >
+          <n-icon>
+            <PersonCircle />
+          </n-icon>
+          <span>Token管理</span>
+        </router-link>
+        <router-link
+          to="/admin/batch-daily-tasks"
+          class="drawer-item"
+          @click="isMobileMenuOpen = false"
+        >
+          <n-icon>
+            <Layers />
+          </n-icon>
+          <span>批量日常</span>
+        </router-link>
+        <router-link
+          to="/admin/task-monitor"
+          class="drawer-item"
+          @click="isMobileMenuOpen = false"
+        >
+          <n-icon>
+            <TimeOutline />
+          </n-icon>
+          <span>任务监控</span>
+        </router-link>
+        <router-link
+          to="/admin/message-test"
+          class="drawer-item"
+          @click="isMobileMenuOpen = false"
+        >
+          <n-icon>
+            <ChatbubbleEllipsesSharp />
+          </n-icon>
+          <span>消息测试</span>
+        </router-link>
+      </div>
+    </n-drawer>
 
     <div class="container">
       <!-- Token导入区域 -->
@@ -753,6 +867,8 @@ import {
   TimeOutline,
   Calendar,
   Time,
+  Cube,
+  ChatbubbleEllipsesSharp,
 } from "@vicons/ionicons5";
 import { NIcon, useDialog, useMessage } from "naive-ui";
 import apiService from "@/services/apiService";
@@ -762,6 +878,9 @@ import { transformToken } from "@/utils/token";
 import useIndexedDB from "@/hooks/useIndexedDB";
 import ThemeToggle from "@/components/Common/ThemeToggle.vue";
 const { getArrayBuffer, storeArrayBuffer, deleteArrayBuffer, clearAll } = useIndexedDB();
+
+const isMobileMenuOpen = ref(false);
+
 // 接收路由参数
 const props = defineProps({
   token: String,
@@ -2123,7 +2242,6 @@ onMounted(async () => {
 .nav-container {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   height: 64px;
   max-width: 1400px;
   margin: 0 auto;
@@ -2132,56 +2250,115 @@ onMounted(async () => {
 .nav-brand {
   display: flex;
   align-items: center;
-  gap: var(--spacing-sm);
+  gap: var(--spacing-xs);
+  margin-right: var(--spacing-xl);
+}
 
-  .brand-logo {
-    width: 40px;
-    height: 40px;
-    border-radius: var(--border-radius-small);
-  }
+.brand-logo {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--border-radius-small);
+}
 
-  .brand-text {
-    font-size: var(--font-size-lg);
-    font-weight: var(--font-weight-semibold);
-    color: var(--text-primary);
-  }
+.brand-text {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+}
+
+.brand-toggle {
+  display: none;
+  align-items: center;
+  gap: var(--spacing-xs);
+  cursor: pointer;
+  font-size: var(--font-size-lg);
+}
+
+.brand-toggle .n-icon {
+  font-size: inherit;
 }
 
 .nav-menu {
   display: flex;
+  gap: var(--spacing-md);
+  flex: 1;
+}
+
+.nav-item {
+  display: flex;
   align-items: center;
   gap: var(--spacing-xs);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--border-radius-medium);
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: all var(--transition-fast);
 
-  .nav-item {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-xs);
-    padding: var(--spacing-sm) var(--spacing-md);
-    border-radius: var(--border-radius-medium);
-    color: var(--text-secondary);
-    text-decoration: none;
-    transition: all 0.2s ease;
+  &:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+  }
 
-    &:hover {
-      background: var(--bg-tertiary);
-      color: var(--text-primary);
-    }
-
-    &.active {
-      background: var(--primary-color);
-      color: white;
-    }
-
-    span {
-      font-size: var(--font-size-sm);
-    }
+  &.active {
+    background: var(--primary-color-light);
+    color: var(--primary-color);
   }
 }
 
 .nav-user {
+  margin-left: auto;
   display: flex;
   align-items: center;
   gap: var(--spacing-md);
+}
+
+@media (max-width: 768px) {
+  .nav-item span {
+    display: none;
+  }
+
+  .nav-menu {
+    display: none;
+  }
+
+  .nav-item {
+    padding: var(--spacing-sm);
+    flex: 0 0 auto;
+  }
+
+  .nav-container {
+    height: 56px;
+  }
+
+  .brand-logo {
+    display: none;
+  }
+
+  .brand-toggle {
+    display: inline-flex;
+  }
+}
+
+.drawer-menu {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md);
+}
+
+.drawer-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--border-radius-medium);
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+
+.drawer-item.router-link-active {
+  background: var(--primary-color-light);
+  color: var(--primary-color);
 }
 
 .container {

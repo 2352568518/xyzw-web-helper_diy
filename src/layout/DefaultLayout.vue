@@ -24,7 +24,32 @@
             </n-icon>
             <span>首页</span>
           </router-link>
+          
+          <!-- 游戏功能 - 带分组下拉菜单 -->
+          <n-dropdown
+            v-if="isGameFeaturesPage"
+            :options="gameFeaturesMenuOptions"
+            @select="handleTokenSelect"
+            trigger="hover"
+            placement="bottom-start"
+          >
+            <router-link
+              to="/admin/game-features"
+              class="nav-item active"
+              active-class="active"
+              @click.prevent
+            >
+              <n-icon>
+                <Cube />
+              </n-icon>
+              <span>游戏功能</span>
+              <n-icon size="small">
+                <ChevronDown />
+              </n-icon>
+            </router-link>
+          </n-dropdown>
           <router-link
+            v-else
             to="/admin/game-features"
             class="nav-item"
             active-class="active"
@@ -34,6 +59,7 @@
             </n-icon>
             <span>游戏功能</span>
           </router-link>
+          
           <router-link to="/tokens" class="nav-item" active-class="active">
             <n-icon>
               <PersonCircle />
@@ -82,7 +108,8 @@
           <!-- 主题切换按钮 -->
           <ThemeToggle />
 
-          <n-dropdown :options="userMenuOptions" @select="handleUserAction">
+          <!-- 游戏功能页面显示token选择器 -->
+          <n-dropdown v-if="isGameFeaturesPage" :options="userMenuOptions" @select="handleUserAction">
             <div class="user-info">
               <n-avatar
                 :src="selectedToken?.avatar || '/icons/xiaoyugan.png'"
@@ -205,6 +232,8 @@ import {
   useTokenStore,
   selectedToken,
   selectedTokenId,
+  tokenGroups,
+  gameTokens,
 } from "@/stores/tokenStore";
 import ThemeToggle from "@/components/Common/ThemeToggle.vue";
 import {
@@ -220,16 +249,22 @@ import {
   TimeOutline,
 } from "@vicons/ionicons5";
 
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useMessage } from 'naive-ui'
-import { ref } from 'vue'
+import { ref, computed, h } from 'vue'
 import { isNowInLegionWarTime } from '@/utils/clubBattleUtils'
+import { NIcon, NAvatar, NText } from 'naive-ui'
 
 const tokenStore = useTokenStore();
 const router = useRouter();
+const route = useRoute();
 const message = useMessage();
 
 const isMobileMenuOpen = ref(false);
+
+const isGameFeaturesPage = computed(() => {
+  return route.path === '/admin/game-features';
+});
 
 const userMenuOptions = [
   {
@@ -237,6 +272,59 @@ const userMenuOptions = [
     key: "logout",
   },
 ];
+
+const gameFeaturesMenuOptions = computed(() => {
+  const groups = tokenGroups.value || [];
+  const tokens = gameTokens.value || [];
+  
+  if (groups.length === 0) {
+    return tokens.map(token => ({
+      label: () => h('div', { style: { display: 'flex', alignItems: 'center', gap: '8px' } }, [
+        h(NAvatar, { 
+          src: token.avatar || '/icons/xiaoyugan.png', 
+          size: 'small',
+          fallbackSrc: '/icons/xiaoyugan.png'
+        }),
+        h('span', token.name),
+        token.server ? h(NText, { depth: 3, style: { fontSize: '12px' } }, () => `[${token.server}]`) : null
+      ]),
+      key: token.id,
+    }));
+  }
+  
+  return groups.map(group => ({
+    label: group.name,
+    key: `group_${group.id}`,
+    children: group.tokenIds
+      .filter(id => tokens.find(t => t.id === id))
+      .map(tokenId => {
+        const token = tokens.find(t => t.id === tokenId);
+        return {
+          label: () => h('div', { style: { display: 'flex', alignItems: 'center', gap: '8px' } }, [
+            h(NAvatar, { 
+              src: token.avatar || '/icons/xiaoyugan.png', 
+              size: 'small',
+              fallbackSrc: '/icons/xiaoyugan.png'
+            }),
+            h('span', token.name),
+            token.server ? h(NText, { depth: 3, style: { fontSize: '12px' } }, () => `[${token.server}]`) : null
+          ]),
+          key: token.id,
+        };
+      })
+  }));
+});
+
+const handleTokenSelect = (key) => {
+  if (key.startsWith('group_')) return;
+  
+  const token = gameTokens.value.find(t => t.id === key);
+  if (token) {
+    tokenStore.selectToken(key);
+    message.success(`已切换到: ${token.name}`);
+    router.push('/admin/game-features');
+  }
+};
 
 // 方法
 const handleUserAction = async (key) => {
