@@ -4149,7 +4149,7 @@ const importConfig = async ({ file }) => {
             }
           });
           favoriteTaskIds.value = existingFavorites;
-          await saveFavorites();
+          saveFavorites();
         }
 
         let successMsg = `导入成功: ${importedTokens} 个新账号, ${importedTasks} 个新定时任务`;
