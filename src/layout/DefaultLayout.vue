@@ -311,12 +311,14 @@ const gameFeaturesMenuOptions = computed(() => {
 const handleTokenSelect = (key) => {
   console.log('handleTokenSelect called with key:', key);
   
-  if (key.startsWith('group_')) {
-    console.log('Skipping group click');
+  // key 格式: groupId_tokenId 或 tokenId
+  // 如果 key 只有两个部分且第一部分是 'group'，说明是点击了分组标题，跳过
+  const parts = key.split('_');
+  if (parts.length === 2 && parts[0] === 'group') {
+    console.log('Skipping group header click');
     return;
   }
   
-  // key 格式: groupId_tokenId 或 tokenId
   const lastUnderscoreIndex = key.lastIndexOf('_');
   const tokenId = lastUnderscoreIndex === -1 ? key : key.slice(lastUnderscoreIndex + 1);
   
