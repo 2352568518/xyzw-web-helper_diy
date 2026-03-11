@@ -309,7 +309,8 @@ class TokenService {
         tokenData = { token: decoded };
       }
 
-      const actualToken = tokenData.token || tokenData.gameToken || decoded;
+      // 支持多种 token 字段名（与前端 localTokenManager.js 保持一致）
+      const actualToken = tokenData.token || tokenData.gameToken || tokenData.roleToken || decoded;
 
       if (!this.validateToken(actualToken)) {
         throw new Error(`提取的token无效: "${actualToken}"`);

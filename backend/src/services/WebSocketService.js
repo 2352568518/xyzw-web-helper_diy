@@ -214,14 +214,28 @@ const responseToCommandMap = {
 class WebSocketClient {
   constructor(tokenId, token, wsUrl) {
     this.tokenId = tokenId;
-    this.token = token;
-    this.wsUrl = wsUrl || `wss://xxz-xyzw.hortorgames.com/agent?p=${encodeURIComponent(token)}&e=x&lang=chinese`;
+    
+    // 解析 token：支持 JSON 格式（包含 roleToken/gameToken/token 字段）
+    let actualToken = token;
+    if (typeof token === 'string') {
+      try {
+        const tokenData = JSON.parse(token);
+        actualToken = tokenData.roleToken || tokenData.gameToken || tokenData.token || token;
+        logger.info(`[DEBUG] 从 JSON 中提取 token: ${actualToken.substring(0, 50)}...`);
+      } catch (e) {
+        // 不是 JSON，直接使用原始 token
+        logger.info(`[DEBUG] token 不是 JSON 格式，直接使用`);
+      }
+    }
+    
+    this.token = actualToken;
+    this.wsUrl = wsUrl || `wss://xxz-xyzw.hortorgames.com/agent?p=${encodeURIComponent(actualToken)}&e=x&lang=chinese`;
     
     // 调试：打印 token 和 URL
     logger.info(`[DEBUG] WebSocketClient 构造函数:`);
     logger.info(`[DEBUG] tokenId: ${tokenId}`);
-    logger.info(`[DEBUG] token 长度: ${token ? token.length : 0}, 前50字符: ${token ? token.substring(0, 50) : 'null'}`);
-    logger.info(`[DEBUG] wsUrl: ${this.wsUrl}`);
+    logger.info(`[DEBUG] actualToken 长度: ${actualToken ? actualToken.length : 0}, 前50字符: ${actualToken ? actualToken.substring(0, 50) : 'null'}`);
+    logger.info(`[DEBUG] wsUrl: ${this.wsUrl.substring(0, 100)}...`);
     
     this.socket = null;
     this.ack = 0;
