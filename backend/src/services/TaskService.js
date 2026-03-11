@@ -347,6 +347,10 @@ class TaskService {
   async executeTaskForToken(task, token, executionStartTime) {
     logger.info(`为Token执行任务: ${task.name}, ${token.name}`);
 
+    // 调试：打印 token 数据
+    logger.info(`[DEBUG] token 对象: ${JSON.stringify(token).substring(0, 500)}`);
+    logger.info(`[DEBUG] token.token: ${token.token ? token.token.substring(0, 100) : 'null'}`);
+
     const executionId = uuidv4();
     let executionResult = {
       status: 'running',
@@ -361,6 +365,7 @@ class TaskService {
       let actualToken = token.token;
       try {
         const parsed = TokenService.parseBase64Token(token.token);
+        logger.info(`[DEBUG] parseBase64Token 结果: ${JSON.stringify(parsed).substring(0, 200)}`);
         if (parsed && parsed.success && parsed.data && parsed.data.actualToken) {
           actualToken = parsed.data.actualToken;
         }
@@ -368,6 +373,8 @@ class TaskService {
         // 解析失败时退回原始 token，由 validateToken 做最终校验
         logger.warn(`Token解析失败，使用原始值: ${token.id}, ${e.message}`);
       }
+
+      logger.info(`[DEBUG] actualToken: ${actualToken ? actualToken.substring(0, 100) : 'null'}`);
 
       // 后端再次校验 token，有问题直接报错，避免无效 token 反复 1006
       if (!TokenService.validateToken(actualToken)) {
