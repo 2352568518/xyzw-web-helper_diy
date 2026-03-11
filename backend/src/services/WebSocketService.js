@@ -216,6 +216,13 @@ class WebSocketClient {
     this.tokenId = tokenId;
     this.token = token;
     this.wsUrl = wsUrl || `wss://xxz-xyzw.hortorgames.com/agent?p=${encodeURIComponent(token)}&e=x&lang=chinese`;
+    
+    // 调试：打印 token 和 URL
+    logger.info(`[DEBUG] WebSocketClient 构造函数:`);
+    logger.info(`[DEBUG] tokenId: ${tokenId}`);
+    logger.info(`[DEBUG] token 长度: ${token ? token.length : 0}, 前50字符: ${token ? token.substring(0, 50) : 'null'}`);
+    logger.info(`[DEBUG] wsUrl: ${this.wsUrl}`);
+    
     this.socket = null;
     this.ack = 0;
     this.seq = 0;
