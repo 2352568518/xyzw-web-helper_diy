@@ -284,13 +284,16 @@ class WebSocketClient {
     // 游戏协议中 code 为 0/undefined 表示成功；-1 常表示成功或无额外数据（如加钟、切换阵容）
     const isSuccess = packet.code === 0 || packet.code === undefined || packet.code === -1;
 
+    // 响应数据优先级: rawData > body（与前端 xyzwWebSocket.js 保持一致）
+    const responseBody = packet.rawData !== undefined ? packet.rawData : packet.body;
+
     // 处理Promise响应 - 优先使用resp字段进行响应匹配
     if (packet.resp !== undefined && this.promises[packet.resp]) {
       const promise = this.promises[packet.resp];
       delete this.promises[packet.resp];
 
       if (isSuccess) {
-        promise.resolve(packet.body || packet);
+        promise.resolve(responseBody || packet);
       } else {
         const errorDesc = errorCodeMap[packet.code] || packet.hint || '未知错误';
         promise.reject(new Error(`服务器错误: ${packet.code} - ${errorDesc}`));
@@ -315,7 +318,7 @@ class WebSocketClient {
             delete this.promises[requestId];
             
             if (isSuccess) {
-              promiseData.resolve(packet.body || packet);
+              promiseData.resolve(responseBody || packet);
             } else {
               const errorDesc = errorCodeMap[packet.code] || packet.hint || '未知错误';
               promiseData.reject(new Error(`服务器错误: ${packet.code} - ${errorDesc}`));
