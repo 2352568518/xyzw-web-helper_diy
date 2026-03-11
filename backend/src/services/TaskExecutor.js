@@ -635,16 +635,43 @@ class TaskExecutor {
       let roleInfo;
       try {
         roleInfo = await this.send('role_getroleinfo', {}, 10000);
+        try {
+          // 限制日志长度，避免刷屏
+          const preview = JSON.stringify(roleInfo).slice(0, 1000);
+          logger.info(
+            `[Arena] raw role_getroleinfo (${this.token.id}): ${preview}`
+          );
+        } catch (logErr) {
+          logger.warn(
+            `[Arena] 序列化 role_getroleinfo 失败: ${logErr.message}`
+          );
+        }
       } catch (e) {
         this.addStep(`获取角色信息失败: ${e.message}`, 'warning');
       }
 
+      // 更鲁棒地解析角色与门票数量，兼容多种结构
       const role =
         roleInfo?.role ||
         roleInfo?.data?.role ||
         roleInfo?.body?.role ||
         roleInfo;
-      const ticketCount = role?.items?.[1007]?.quantity || 0;
+
+      const items = role?.items || {};
+      const item1007 =
+        items[1007] ||
+        items['1007'] ||
+        (typeof items.get === 'function' ? items.get(1007) : undefined) ||
+        (typeof items.get === 'function' ? items.get('1007') : undefined) ||
+        {};
+
+      const ticketCount = Number(
+        item1007.quantity ??
+        item1007.num ??
+        item1007.value ??
+        item1007.count ??
+        0
+      );
 
       this.addStep(`当前咸神门票: ${ticketCount}`, 'info');
 
