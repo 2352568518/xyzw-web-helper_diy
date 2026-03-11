@@ -2630,6 +2630,9 @@ onMounted(async () => {
 
 .tokens-content {
   flex: 1;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
 }
 
 .tokens-toolbar {
@@ -2643,12 +2646,14 @@ onMounted(async () => {
   background: var(--bg-primary);
   border-radius: var(--border-radius-large);
   border: 1px solid var(--border-light);
+  max-width: 100%;
 }
 
 .tokens-list-wrapper {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-lg);
+  max-width: 100%;
 }
 
  .tokens-section {
@@ -2658,6 +2663,7 @@ onMounted(async () => {
   box-shadow: none;
   display: flex;
   flex-direction: column;
+  max-width: 100%;
 }
 
 /* 深色主题下的列表区域背景 */
@@ -2685,6 +2691,7 @@ onMounted(async () => {
   margin: -var(--spacing-xl) -var(--spacing-xl) var(--spacing-md);
   padding: var(--spacing-xl);
   border-bottom: 1px solid var(--border-light);
+  max-width: 100%;
 
   h2 {
     color: var(--text-primary);
@@ -2704,9 +2711,10 @@ onMounted(async () => {
 
 .tokens-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: var(--spacing-lg);
   padding-right: var(--spacing-sm);
+  max-width: 100%;
 
   &::-webkit-scrollbar {
     width: 6px;
