@@ -242,6 +242,21 @@ class WebSocketClient {
       
       if (packet && typeof packet === 'object') {
         logger.debug(`BON解码成功: cmd=${packet.cmd || 'unknown'}`);
+        
+        // 对 body 字段进行二次解码（与前端 ProtoMsg.rawData 保持一致）
+        if (packet.body && Buffer.isBuffer(packet.body)) {
+          try {
+            packet.rawData = bon.decode(packet.body);
+            logger.debug(`消息体二次解码成功: cmd=${packet.cmd || 'unknown'}`);
+          } catch (bodyError) {
+            logger.warn(`消息体二次解码失败: ${bodyError.message}`);
+            packet.rawData = packet.body;
+          }
+        } else if (packet.body) {
+          // body 已经是解码后的数据
+          packet.rawData = packet.body;
+        }
+        
         return packet;
       } else {
         logger.warn(`BON解码返回非对象: ${typeof packet}`);
