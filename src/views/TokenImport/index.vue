@@ -2652,7 +2652,7 @@ onMounted(async () => {
 .tokens-list-wrapper {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-lg);
+  gap: var(--spacing-md);
   max-width: 100%;
 }
 
@@ -2682,14 +2682,14 @@ onMounted(async () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--spacing-xl);
+  margin-bottom: var(--spacing-lg);
   position: sticky;
   top: 0;
   z-index: 10;
   background: var(--bg-primary);
-  padding: var(--spacing-lg) 0;
-  margin: -var(--spacing-xl) -var(--spacing-xl) var(--spacing-md);
-  padding: var(--spacing-xl);
+  padding: var(--spacing-md) 0;
+  margin: -var(--spacing-xl) -var(--spacing-xl) var(--spacing-sm);
+  padding: var(--spacing-lg);
   border-bottom: 1px solid var(--border-light);
   max-width: 100%;
 
@@ -2702,7 +2702,7 @@ onMounted(async () => {
 
 .header-actions {
   display: flex;
-  gap: var(--spacing-md);
+  gap: var(--spacing-sm);
   max-width: 100%;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
@@ -2712,7 +2712,7 @@ onMounted(async () => {
 .tokens-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: var(--spacing-lg);
+  gap: var(--spacing-md);
   padding-right: var(--spacing-sm);
   max-width: 100%;
 
