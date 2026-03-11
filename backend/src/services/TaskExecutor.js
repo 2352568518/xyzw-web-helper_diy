@@ -623,45 +623,127 @@ class TaskExecutor {
   // ==================== 竞技场任务 ====================
 
   async batcharenafight() {
-    this.addStep('获取竞技场信息');
-    
+    this.addStep('开始一键竞技场');
+
     try {
-      // 切换阵容
+      // 读取任务配置
       const arenaFormation = this.taskSettings.arenaFormation;
-      if (arenaFormation) {
+      const battleDelay = this.taskSettings.battleDelay || 1000;
+
+      // 1. 检查咸神门票 (ID: 1007)
+      this.addStep('获取角色信息(用于检查咸神门票)');
+      let roleInfo;
+      try {
+        roleInfo = await this.send('role_getroleinfo', {}, 10000);
+      } catch (e) {
+        this.addStep(`获取角色信息失败: ${e.message}`, 'warning');
+      }
+
+      const role =
+        roleInfo?.role ||
+        roleInfo?.data?.role ||
+        roleInfo?.body?.role ||
+        roleInfo;
+      const ticketCount = role?.items?.[1007]?.quantity || 0;
+
+      this.addStep(`当前咸神门票: ${ticketCount}`, 'info');
+
+      if (ticketCount <= 0) {
+        this.addStep('咸神门票不足，无法进行竞技场战斗', 'warning');
+        return;
+      }
+
+      // 2. 获取并切换阵容
+      let originalFormation = null;
+      try {
         const teamInfo = await this.send('presetteam_getinfo');
-        const currentFormation = teamInfo?.presetTeamInfo?.useTeamId;
-        if (currentFormation !== arenaFormation) {
+        originalFormation = teamInfo?.presetTeamInfo?.useTeamId;
+
+        if (arenaFormation && originalFormation !== arenaFormation) {
           this.addStep(`切换到阵容${arenaFormation}`);
           await this.send('presetteam_saveteam', { teamId: arenaFormation });
+        } else if (arenaFormation) {
+          this.addStep(`当前已是阵容${arenaFormation}，无需切换`, 'info');
         }
+      } catch (e) {
+        this.addStep(`获取/切换阵容失败: ${e.message}`, 'warning');
       }
-      
-      // 开始竞技场
-      await this.send('arena_startarea');
-      
-      for (let i = 0; i < 3; i++) {
+
+      // 3. 计算实际战斗次数（最多3次，受门票数量限制）
+      const fights = Math.min(3, ticketCount);
+      if (fights < 3) {
+        this.addStep(
+          `咸神门票仅剩 ${ticketCount} 张，将执行 ${fights} 次战斗`,
+          'warning'
+        );
+      }
+
+      for (let i = 0; i < fights; i++) {
         try {
-          this.addStep(`竞技场战斗 ${i + 1}/3`);
-          
+          this.addStep(`竞技场战斗 ${i + 1}/${fights}`);
+
+          // 开始竞技场
+          await this.send('arena_startarea');
+
           // 获取竞技场目标
           const targets = await this.send('arena_getareatarget');
           const targetId = this.pickArenaTargetId(targets);
-          
+
           if (!targetId) {
-            this.addStep('未找到可用的竞技场目标');
+            this.addStep('未找到可用的竞技场目标', 'warning');
             break;
           }
-          
+
           // 开始竞技场战斗
-          await this.send('fight_startareaarena', { targetId });
-          await this.delay(1000);
+          await this.send('fight_startareaarena', { targetId }, 15000);
+          await this.delay(battleDelay);
         } catch (err) {
-          this.addStep(`战斗失败: ${err.message}`);
+          this.addStep(`竞技场对决失败: ${err.message}`, 'error');
+        }
+      }
+
+      await this.delay(battleDelay);
+
+      // 4. 尝试领取通行证奖励
+      try {
+        this.addStep('尝试领取通行证奖励');
+        const passResult = await this.send(
+          'activity_recyclewarorderrewardclaim',
+          { actId: 1 },
+          5000
+        );
+
+        const rewards = passResult?.reward || [];
+        if (rewards.length > 0) {
+          const itemNames = { 1003: '金币', 1007: '咸神门票' };
+          const rewardInfo = rewards
+            .map((r) => `${itemNames[r.itemId] || '道具'} x${r.value}`)
+            .join(', ');
+          this.addStep(`领取通行证奖励: ${rewardInfo}`, 'success');
+        } else if (passResult && passResult.errcode === 1001) {
+          this.addStep('暂无可领取的通行证奖励', 'info');
+        } else if (passResult) {
+          this.addStep('通行证奖励已领取', 'info');
+        }
+      } catch (passErr) {
+        this.addStep(
+          `领取通行证奖励失败: ${passErr.message}`,
+          'warning'
+        );
+      }
+
+      // 5. 如有需要，切回原阵容
+      if (originalFormation && arenaFormation && originalFormation !== arenaFormation) {
+        try {
+          this.addStep(`恢复原阵容: ${originalFormation}`);
+          await this.send('presetteam_saveteam', { teamId: originalFormation });
+        } catch (e) {
+          this.addStep(`恢复原阵容失败: ${e.message}`, 'warning');
         }
       }
     } catch (err) {
-      this.addStep(`竞技场失败: ${err.message}`);
+      this.addStep(`一键竞技场失败: ${err.message}`, 'error');
+      throw err;
     }
   }
 
