@@ -28,39 +28,7 @@ class TaskExecutor {
    * 发送消息并等待响应
    */
   async send(cmd, params = {}, timeout = 5000) {
-    // 为战斗相关命令自动注入 battleVersion
-    const battleCommands = [
-      'fight_startareaarena',
-      'fight_startpvp',
-      'fight_starttower',
-      'fight_startboss',
-      'fight_startlegionboss',
-      'fight_startdungeon',
-    ];
-    
-    if (battleCommands.includes(cmd) && this.battleVersion) {
-      params = { battleVersion: this.battleVersion, ...params };
-      logger.debug(`注入 battleVersion: ${this.battleVersion} [${cmd}]`);
-    }
-    
     return await this.wsClient.sendWithPromise(cmd, params, timeout);
-  }
-
-  /**
-   * 获取 battleVersion（战斗命令必需）
-   */
-  async initBattleVersion() {
-    try {
-      const res = await this.send('fight_startlevel', {}, 5000);
-      if (res && res.battleData && res.battleData.version) {
-        this.battleVersion = res.battleData.version;
-        logger.debug(`获取 battleVersion: ${this.battleVersion}`);
-        return true;
-      }
-    } catch (err) {
-      logger.warn(`获取 battleVersion 失败: ${err.message}`);
-    }
-    return false;
   }
 
   /**
@@ -668,19 +636,9 @@ class TaskExecutor {
       let roleInfo;
       try {
         roleInfo = await this.send('role_getroleinfo', {}, 10000);
-        try {
-          // 限制日志长度，避免刷屏
-          const preview = JSON.stringify(roleInfo).slice(0, 1000);
-          logger.info(
-            `[Arena] raw role_getroleinfo (${this.token.id}): ${preview}`
-          );
-        } catch (logErr) {
-          logger.warn(
-            `[Arena] 序列化 role_getroleinfo 失败: ${logErr.message}`
-          );
-        }
       } catch (e) {
         this.addStep(`获取角色信息失败: ${e.message}`, 'warning');
+        logger.error(`[Arena] 获取角色信息失败: ${e.message}`);
       }
 
       // 更鲁棒地解析角色与门票数量，兼容多种结构
@@ -712,9 +670,6 @@ class TaskExecutor {
         this.addStep('咸神门票不足，无法进行竞技场战斗', 'warning');
         return;
       }
-
-      // 获取 battleVersion（战斗命令必需）
-      await this.initBattleVersion();
 
       // 2. 获取并切换阵容
       let originalFormation = null;
@@ -757,8 +712,17 @@ class TaskExecutor {
             break;
           }
 
+          // 获取 battleVersion
+          let battleVersion = null;
+          try {
+            const battleRes = await this.send('fight_startlevel', {}, 10000);
+            battleVersion = battleRes?.battleData?.version || battleRes?._raw?.body?.battleData?.version;
+          } catch (e) {
+            logger.warn('[Arena] 获取 battleVersion 失败');
+          }
+
           // 开始竞技场战斗
-          await this.send('fight_startareaarena', { targetId }, 15000);
+          await this.send('fight_startareaarena', { targetId: Number(targetId) }, 15000);
           await this.delay(battleDelay);
         } catch (err) {
           this.addStep(`竞技场对决失败: ${err.message}`, 'error');
@@ -770,29 +734,13 @@ class TaskExecutor {
       // 4. 尝试领取通行证奖励
       try {
         this.addStep('尝试领取通行证奖励');
-        const passResult = await this.send(
+        await this.send(
           'activity_recyclewarorderrewardclaim',
           { actId: 1 },
           5000
         );
-
-        const rewards = passResult?.reward || [];
-        if (rewards.length > 0) {
-          const itemNames = { 1003: '金币', 1007: '咸神门票' };
-          const rewardInfo = rewards
-            .map((r) => `${itemNames[r.itemId] || '道具'} x${r.value}`)
-            .join(', ');
-          this.addStep(`领取通行证奖励: ${rewardInfo}`, 'success');
-        } else if (passResult && passResult.errcode === 1001) {
-          this.addStep('暂无可领取的通行证奖励', 'info');
-        } else if (passResult) {
-          this.addStep('通行证奖励已领取', 'info');
-        }
       } catch (passErr) {
-        this.addStep(
-          `领取通行证奖励失败: ${passErr.message}`,
-          'warning'
-        );
+        this.addStep(`领取通行证奖励失败: ${passErr.message}`, 'warning');
       }
 
       // 5. 如有需要，切回原阵容
@@ -816,10 +764,9 @@ class TaskExecutor {
   pickArenaTargetId(targets) {
     if (!targets) return null;
     
-    const targetList = targets.areaTargetList || targets.targets || targets.list || targets;
+    const targetList = targets.areaTargetList || targets.targets || targets.list || targets.roleList || targets;
     if (!Array.isArray(targetList) || targetList.length === 0) return null;
     
-    // 选择第一个目标
     const target = targetList[0];
     return target.roleId || target.id || target.targetId;
   }
@@ -1393,7 +1340,9 @@ class TaskExecutor {
     this.addStep('开始批量学习');
     
     try {
+      await this.delay(500);
       await this.send('skill_studyskill');
+      await this.delay(2000);
       this.addStep('批量学习完成');
     } catch (error) {
       logger.warn(`批量学习失败: ${error.message}`);

@@ -74,6 +74,7 @@ const responseToCommandMap = {
   arena_getareatargetresp: ['arena_getareatarget'],
   arena_startarearesp: ['arena_startarea'],
   fight_startareaarenaresp: ['fight_startareaarena'],
+  activity_recyclewarorderrewardclaimresp: ['activity_recyclewarorderrewardclaim'],
   legion_getinforesp: ['legion_getinfo'],
   legion_getinforresp: ['legion_getinfo'], // 服务端可能的拼写变体
   legion_claimpayloadtaskresp: ['legion_claimpayloadtask'],
@@ -98,6 +99,9 @@ const responseToCommandMap = {
 
   // 角色信息（爬塔刷新体力等）
   role_getroleinforesp: ['role_getroleinfo'],
+
+  // 战斗版本号获取
+  fight_startlevelresp: ['fight_startlevel'],
 
   // 换皮闯关
   towers_getinforesp: ['towers_getinfo'],
@@ -177,6 +181,9 @@ class WebSocketClient {
         } else if (event.data instanceof ArrayBuffer || Buffer.isBuffer(event.data)) {
           // BON协议二进制数据处理
           packet = this._parseBinaryData(event.data);
+          
+          // 调试日志：输出原始响应
+          logger.info(`[WebSocket原始] 数据类型=${typeof event.data}, packet内容=${JSON.stringify(packet).slice(0,200)}`);
         } else {
           logger.warn(`未知数据类型: ${typeof event.data}`);
           packet = event.data;
@@ -296,8 +303,13 @@ class WebSocketClient {
    * 处理消息
    */
   _handleMessage(packet) {
+    // 调试日志：输出所有收到的消息
+    logger.info(`[收到] cmd=${packet.cmd}, resp=${packet.resp}, seq=${packet.seq}, code=${packet.code}, error=${packet.error}`);
+    
     // 游戏协议中 code 为 0/undefined 表示成功；-1 常表示成功或无额外数据（如加钟、切换阵容）
-    const isSuccess = packet.code === 0 || packet.code === undefined || packet.code === -1;
+    // 但如果同时有 error 字段，说明是错误响应
+    const hasError = packet.error !== undefined && packet.error !== '';
+    const isSuccess = !hasError && (packet.code === 0 || packet.code === undefined || packet.code === -1);
 
     // 响应数据优先级: rawData > body（与前端 xyzwWebSocket.js 保持一致）
     const responseBody = packet.rawData !== undefined ? packet.rawData : packet.body;
@@ -310,7 +322,7 @@ class WebSocketClient {
       if (isSuccess) {
         promise.resolve(responseBody || packet);
       } else {
-        const errorDesc = errorCodeMap[packet.code] || packet.hint || '未知错误';
+        const errorDesc = errorCodeMap[packet.code] || packet.hint || packet.error || '未知错误';
         promise.reject(new Error(`服务器错误: ${packet.code} - ${errorDesc}`));
       }
       return;
@@ -414,6 +426,11 @@ class WebSocketClient {
    */
   _sendPacket(packet) {
     try {
+      // 调试日志：输出战斗命令的参数
+      if (packet.cmd === 'fight_startareaarena') {
+        logger.info(`[发送] fight_startareaarena, cmd=${packet.cmd}, seq=${packet.seq}, ack=${packet.ack}, body类型=${typeof packet.body}, body长度=${packet.body?.length}, body内容=${JSON.stringify(packet.body).slice(0,100)}`);
+      }
+      
       // 1. 先对整个消息包进行 BON 编码
       const bonData = bon.encode(packet);
       
@@ -483,6 +500,11 @@ class WebSocketClient {
    * 发送消息（Promise版）
    */
   sendWithPromise(cmd, params = {}, timeout = 5000) {
+    // 调试日志
+    if (cmd === 'fight_startareaarena') {
+      logger.info(`[调用] sendWithPromise fight_startareaarena, params=${JSON.stringify(params)}, timeout=${timeout}`);
+    }
+    
     return new Promise((resolve, reject) => {
       if (!this.connected && !this.socket) {
         return reject(new Error('WebSocket未连接'));

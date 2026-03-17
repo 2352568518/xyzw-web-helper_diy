@@ -73,7 +73,7 @@ export const StudyPlugin = ({
 
         // 添加短暂延迟，避免请求过快
         if (i < questionList.length - 1) {
-          await sleep(300)
+          await sleep(800)
         }
       }
       // 延迟1500ms后领取奖励
@@ -112,7 +112,7 @@ export const StudyPlugin = ({
         client?.send('study_claimreward', {
           rewardId: rewardId
         })
-        await new Promise(resolve => setTimeout(resolve, 200))
+        await new Promise(resolve => setTimeout(resolve, 500))
         gameLogger.verbose(`已发送奖励领取请求: rewardId=${rewardId}`)
       } catch (error) {
         gameLogger.error(`发送奖励领取请求失败 (rewardId=${rewardId}):`, error)
