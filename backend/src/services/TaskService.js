@@ -377,9 +377,6 @@ class TaskService {
       // 建立WebSocket连接（使用解析后的实际 token）
       const wsClient = await WebSocketService.createConnection(token.id, actualToken, token.ws_url);
 
-      // 暂时跳过初始化步骤，直接执行任务
-      // await this.initializeConnection(wsClient);
-
       // 执行任务步骤
       executionResult = await this.executeTaskSteps(task, token, wsClient);
 
@@ -398,46 +395,6 @@ class TaskService {
       await this.updateExecutionRecord(executionId, 'failed', executionResult);
       // 任务失败时也要断开连接，避免 WebSocket 陷入无限重连
       WebSocketService.disconnect(token.id);
-    }
-  }
-
-  /**
-   * 初始化WebSocket连接（与前端ensureConnection保持一致）
-   */
-  async initializeConnection(wsClient) {
-    logger.info('开始初始化连接...');
-    
-    try {
-      // 1. 获取角色信息
-      logger.info('获取角色信息...');
-      const roleInfo = await wsClient.sendWithPromise('role_getroleinfo', {
-        clientVersion: '2.10.3-f10a39eaa0c409f4-wx',
-        inviteUid: 0,
-        platform: 'hortor',
-        platformExt: 'mix',
-        scene: ''
-      }, 15000);
-      logger.info(`角色信息获取成功: ${roleInfo?.role?.name || '未知'}`);
-
-      // 2. 获取战斗版本号
-      logger.info('获取战斗版本号...');
-      let battleVersion = null;
-      try {
-        const battleRes = await wsClient.sendWithPromise('fight_startlevel', {}, 10000);
-        if (battleRes?.battleData?.version) {
-          battleVersion = battleRes.battleData.version;
-          logger.info(`战斗版本号: ${battleVersion}`);
-        }
-      } catch (e) {
-        logger.warn(`获取战斗版本号失败: ${e.message}`);
-      }
-
-      logger.info('连接初始化完成');
-      
-      // 将 battleVersion 存储到 wsClient 供 TaskExecutor 使用
-      wsClient.battleVersion = battleVersion;
-    } catch (error) {
-      logger.warn(`连接初始化失败: ${error.message}，继续尝试执行任务...`);
     }
   }
 
