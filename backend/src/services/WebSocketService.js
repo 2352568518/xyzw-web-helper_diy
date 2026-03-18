@@ -458,11 +458,12 @@ class WebSocketClient {
   _buildPacket(cmd, params = {}, seq) {
     // 心跳是协议特例：cmd="_sys/ack" 且 body 为普通对象 {}
     // 前端实现不会对心跳 body 做 BON 编码
-    const isHeartbeat = cmd === '_sys/ack';
+    const normalizedCmd = typeof cmd === 'string' ? cmd.toLowerCase() : cmd;
+    const isHeartbeat = normalizedCmd === '_sys/ack';
     const encodedBody = isHeartbeat ? {} : bon.encode(params);
     
     return {
-      cmd,
+      cmd: normalizedCmd,
       ack: this.ack,
       // 心跳 seq 固定为 0；其它命令使用传入 seq 或自增
       seq: isHeartbeat ? 0 : (seq || ++this.seq),
@@ -533,7 +534,8 @@ class WebSocketClient {
     const task = {
       cmd,
       params,
-      seq: options.seq || ++this.seq,
+      // 注意：seq 可能为 0（例如心跳），不能用 || 判断
+      seq: options.seq !== undefined ? options.seq : ++this.seq,
       onSent: options.onSent
     };
 
@@ -843,4 +845,4 @@ class WebSocketService {
 
 // 导出单例
 export default new WebSocketService();
- 
+
