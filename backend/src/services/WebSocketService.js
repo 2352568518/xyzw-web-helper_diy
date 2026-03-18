@@ -343,8 +343,12 @@ class WebSocketClient {
    * 处理消息
    */
   _handleMessage(packet) {
-    // 游戏协议中 code 为 0/undefined 表示成功；-1 常表示成功或无额外数据（如加钟、切换阵容）
-    const isSuccess = packet.code === 0 || packet.code === undefined || packet.code === -1;
+    // 游戏协议中 code 为 0/undefined 表示成功；
+    // code=-1 有时代表成功(无额外数据)，但当携带 error/hint 时应视为失败（如“指令解析错误”）
+    const isSuccess =
+      packet.code === 0 ||
+      packet.code === undefined ||
+      (packet.code === -1 && !packet.error && !packet.hint);
 
     // 响应数据优先级: rawData > body（与前端 xyzwWebSocket.js 保持一致）
     const responseBody = packet.rawData !== undefined ? packet.rawData : packet.body;
@@ -357,7 +361,11 @@ class WebSocketClient {
       if (isSuccess) {
         promise.resolve(responseBody || packet);
       } else {
-        const errorDesc = errorCodeMap[packet.code] || packet.hint || '未知错误';
+        const errorDesc =
+          errorCodeMap[packet.code] ||
+          packet.error ||
+          packet.hint ||
+          '未知错误';
         promise.reject(new Error(`服务器错误: ${packet.code} - ${errorDesc}`));
       }
       return;
@@ -382,7 +390,11 @@ class WebSocketClient {
             if (isSuccess) {
               promiseData.resolve(responseBody || packet);
             } else {
-              const errorDesc = errorCodeMap[packet.code] || packet.hint || '未知错误';
+              const errorDesc =
+                errorCodeMap[packet.code] ||
+                packet.error ||
+                packet.hint ||
+                '未知错误';
               promiseData.reject(new Error(`服务器错误: ${packet.code} - ${errorDesc}`));
             }
             return;
@@ -444,13 +456,16 @@ class WebSocketClient {
    * 构建数据包（BON协议）
    */
   _buildPacket(cmd, params = {}, seq) {
-    // body 需要先进行 BON 编码（与前端一致）
-    const encodedBody = bon.encode(params);
+    // 心跳是协议特例：cmd="_sys/ack" 且 body 为普通对象 {}
+    // 前端实现不会对心跳 body 做 BON 编码
+    const isHeartbeat = cmd === '_sys/ack';
+    const encodedBody = isHeartbeat ? {} : bon.encode(params);
     
     return {
       cmd,
       ack: this.ack,
-      seq: seq || ++this.seq,
+      // 心跳 seq 固定为 0；其它命令使用传入 seq 或自增
+      seq: isHeartbeat ? 0 : (seq || ++this.seq),
       time: Date.now(),
       body: encodedBody
     };
@@ -563,7 +578,8 @@ class WebSocketClient {
    * 发送心跳
    */
   sendHeartbeat() {
-    this.send('heart_beat', {}, { respKey: '_sys/ack' });
+    // 与前端一致：心跳实际发送的是 cmd="_sys/ack"
+    this.send('_sys/ack', {}, { seq: 0 });
   }
 
   /**
