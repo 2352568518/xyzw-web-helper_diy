@@ -531,8 +531,14 @@ class WebSocketClient {
    */
   sendWithPromise(cmd, params = {}, timeout = 5000) {
     return new Promise((resolve, reject) => {
-      if (!this.connected && !this.socket) {
-        return reject(new Error('WebSocket未连接'));
+      // 连接未就绪时不要继续排队等待，否则只会触发“请求超时”误导排查
+      if (!this.socket || !this.connected || this.socket.readyState !== WebSocket.OPEN) {
+        const status = this.getStatus();
+        const closeInfo =
+          this.lastCloseCode != null
+            ? ` close=${this.lastCloseCode}${this.lastCloseReason ? `(${this.lastCloseReason})` : ''}`
+            : '';
+        return reject(new Error(`WebSocket未连接(status=${status}${closeInfo})`));
       }
 
       const requestSeq = ++this.seq;
@@ -821,3 +827,4 @@ class WebSocketService {
 
 // 导出单例
 export default new WebSocketService();
+ 
