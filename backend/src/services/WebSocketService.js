@@ -281,19 +281,28 @@ class WebSocketClient {
    */
   _parseBinaryData(data) {
     try {
-      // 转换为Buffer
-      const buffer = Buffer.isBuffer(data) ? data : Buffer.from(data);
-      
-      // 使用bon.decode自动解密和解码
-      const packet = bon.decode(buffer);
+      // ws 在 Node 中通常给 Buffer；统一转为 Uint8Array
+      const u8 = Buffer.isBuffer(data)
+        ? new Uint8Array(data.buffer, data.byteOffset, data.byteLength)
+        : data instanceof ArrayBuffer
+          ? new Uint8Array(data)
+          : new Uint8Array(Buffer.from(data));
+
+      // 注意：后端 bon.decode 现在只做 BON 解码，不再自动解密
+      // 先 autoDecrypt 再 bon.decode，才能得到正确的包结构
+      const plain = autoDecrypt(u8);
+      const packet = bon.decode(plain);
       
       if (packet && typeof packet === 'object') {
         logger.debug(`BON解码成功: cmd=${packet.cmd || 'unknown'}`);
         
         // 对 body 字段进行二次解码（与前端 ProtoMsg.rawData 保持一致）
-        if (packet.body && Buffer.isBuffer(packet.body)) {
+        if (packet.body && (packet.body instanceof Uint8Array || Buffer.isBuffer(packet.body))) {
           try {
-            packet.rawData = bon.decode(packet.body);
+            const bodyU8 = packet.body instanceof Uint8Array
+              ? packet.body
+              : new Uint8Array(packet.body.buffer, packet.body.byteOffset, packet.body.byteLength);
+            packet.rawData = bon.decode(bodyU8);
             logger.debug(`消息体二次解码成功: cmd=${packet.cmd || 'unknown'}`);
           } catch (bodyError) {
             logger.warn(`消息体二次解码失败: ${bodyError.message}`);
@@ -845,4 +854,3 @@ class WebSocketService {
 
 // 导出单例
 export default new WebSocketService();
-
