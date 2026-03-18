@@ -154,10 +154,31 @@ class WebSocketClient {
    */
   init() {
     logger.info(`WebSocket连接初始化: ${this.tokenId}`);
+    // 建立连接时启用握手超时，避免在 Render 等环境下无限等待
+    // ws 的握手超时仅覆盖 HTTP Upgrade 阶段；连接后仍由心跳机制维持
+    const handshakeTimeout = Number.isFinite(this.heartbeatInterval)
+      ? config.websocket.connectionTimeout
+      : 30000;
 
-    this.socket = new WebSocket(this.wsUrl);
+    this.socket = new WebSocket(this.wsUrl, {
+      handshakeTimeout,
+      perMessageDeflate: false,
+    });
+
+    // 额外的“连接建立超时”兜底：握手超时/网络黑洞时强制终止，确保上层能收到明确错误
+    const connectTimer = setTimeout(() => {
+      if (!this.connected && this.socket && this.socket.readyState === WebSocket.CONNECTING) {
+        logger.error(`WebSocket连接超时(terminate): ${this.tokenId} timeout=${handshakeTimeout}ms url=${this.wsUrl.split('?')[0]}`);
+        try {
+          this.socket.terminate();
+        } catch (e) {
+          logger.debug(`terminate失败: ${this.tokenId} ${e?.message || e}`);
+        }
+      }
+    }, handshakeTimeout + 1000);
 
     this.socket.onopen = () => {
+      clearTimeout(connectTimer);
       logger.info(`WebSocket连接成功: ${this.tokenId}`);
       this.connected = true;
       this.reconnectCount = 0; // 连接成功则重置重连计数
@@ -204,6 +225,7 @@ class WebSocketClient {
     };
 
     this.socket.onclose = (event) => {
+      clearTimeout(connectTimer);
       // 只在非主动关闭时输出日志
       if (event.code !== 1000 && event.code !== 1001 && event.code !== 1005) {
         logger.info(`WebSocket连接关闭: ${this.tokenId}, 代码: ${event.code}, 原因: ${event.reason}`);
@@ -222,11 +244,36 @@ class WebSocketClient {
     };
 
     this.socket.onerror = (error) => {
-      logger.error(`WebSocket错误: ${this.tokenId}, ${error.message}`);
+      // ws 在 Node 环境下经常只给出笼统的 error.message；这里尽可能打印底层网络信息便于定位
+      const detail = {
+        message: error?.message,
+        code: error?.code,
+        errno: error?.errno,
+        syscall: error?.syscall,
+        address: error?.address,
+        port: error?.port,
+        stack: error?.stack,
+        url: this.wsUrl?.split('?')?.[0],
+      };
+      logger.error(`WebSocket错误: ${this.tokenId}`, detail);
       this.connected = false;
       this._clearTimers();
       this._updateConnectionStatus('error', error.message);
     };
+
+    // 握手被服务端拒绝时，ws 会触发 unexpected-response，记录状态码/头部便于排查
+    this.socket.on('unexpected-response', (_req, res) => {
+      try {
+        logger.error(`WebSocket握手被拒绝: ${this.tokenId}`, {
+          statusCode: res?.statusCode,
+          statusMessage: res?.statusMessage,
+          headers: res?.headers,
+          url: this.wsUrl?.split('?')?.[0],
+        });
+      } catch (e) {
+        logger.error(`WebSocket握手拒绝日志失败: ${this.tokenId} ${e?.message || e}`);
+      }
+    });
   }
 
   /**
