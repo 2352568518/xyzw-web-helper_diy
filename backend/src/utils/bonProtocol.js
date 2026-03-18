@@ -547,7 +547,9 @@ const _enc = new BonEncoder();
 const _dec = new BonDecoder();
 
 export const bon = {
-  encode: (value, clone = false) => {
+  // 默认 clone=true：避免共享缓冲区被后续 encode 覆盖，导致嵌套编码（body 为 Uint8Array）时数据被污染
+  // 前端实现中，作为 packet.body 的 bon.encode 默认也会返回拷贝
+  encode: (value, clone = true) => {
     _enc.reset();
     _enc.encode(value);
     return _enc.getBytes(clone);
