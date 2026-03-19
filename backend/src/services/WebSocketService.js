@@ -801,7 +801,7 @@ class WebSocketService {
    * 发送消息
    */
   sendMessage(tokenId, cmd, params = {}, options = {}) {
- `   const client = this.clients.get(tokenId);
+    const client = this.clients.get(tokenId);
     if (!client) {
       throw new Error('WebSocket客户端不存在');
     }
