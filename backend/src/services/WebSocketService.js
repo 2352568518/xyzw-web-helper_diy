@@ -469,7 +469,6 @@ class WebSocketClient {
     // 前端实现不会对心跳 body 做 BON 编码
     const normalizedCmd = typeof cmd === 'string' ? cmd.toLowerCase() : cmd;
     const isHeartbeat = normalizedCmd === '_sys/ack';
-    const encodedBody = isHeartbeat ? {} : bon.encode(params);
     
     return {
       cmd: normalizedCmd,
@@ -477,7 +476,7 @@ class WebSocketClient {
       // 心跳 seq 固定为 0；其它命令使用传入 seq 或自增
       seq: isHeartbeat ? 0 : (seq || ++this.seq),
       time: Date.now(),
-      body: encodedBody
+      body: isHeartbeat ? {} : params
     };
   }
 
