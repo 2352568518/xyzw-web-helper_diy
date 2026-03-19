@@ -27,7 +27,7 @@ class TaskExecutor {
   /**
    * 发送消息并等待响应（带重试机制）
    */
-  async send(cmd, params = {}, timeout = 15000, maxRetries = 5) {
+  async send(cmd, params = {}, timeout = 20000, maxRetries = 7) {
     // 为战斗相关命令自动注入 battleVersion
     const battleCommands = [
       'fight_startareaarena',
@@ -55,8 +55,9 @@ class TaskExecutor {
         // 遇到脚本运行过快或服务器错误时，增加延迟后重试
         if (error.message.includes('脚本运行过快') || error.message.includes('服务器错误')) {
           logger.warn(`发送命令失败，${retries}/${maxRetries} 重试: ${error.message}`);
-          // 增加延迟时间，从 2000ms 开始，每次增加 1000ms
-          const delayTime = 2000 + (retries - 1) * 1000;
+          // 增加延迟时间，使用指数退避策略
+          const delayTime = Math.min(10000, 2000 * Math.pow(2, retries - 1));
+          logger.info(`等待 ${delayTime}ms 后重试...`);
           await this.delay(delayTime);
         } else {
           throw error;
