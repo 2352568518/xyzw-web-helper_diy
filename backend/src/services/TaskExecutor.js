@@ -27,7 +27,7 @@ class TaskExecutor {
   /**
    * 发送消息并等待响应（带重试机制）
    */
-  async send(cmd, params = {}, timeout = 10000, maxRetries = 3) {
+  async send(cmd, params = {}, timeout = 15000, maxRetries = 5) {
     // 为战斗相关命令自动注入 battleVersion
     const battleCommands = [
       'fight_startareaarena',
@@ -55,7 +55,9 @@ class TaskExecutor {
         // 遇到脚本运行过快或服务器错误时，增加延迟后重试
         if (error.message.includes('脚本运行过快') || error.message.includes('服务器错误')) {
           logger.warn(`发送命令失败，${retries}/${maxRetries} 重试: ${error.message}`);
-          await this.delay(2000 * retries);
+          // 增加延迟时间，从 2000ms 开始，每次增加 1000ms
+          const delayTime = 2000 + (retries - 1) * 1000;
+          await this.delay(delayTime);
         } else {
           throw error;
         }
@@ -293,7 +295,15 @@ class TaskExecutor {
 
   async batchlingguanzi() {
     this.addStep('领取盐罐');
-    await this.send('bottlehelper_claim');
+    try {
+      await this.send('bottlehelper_claim');
+    } catch (error) {
+      if (error.message.includes('没有奖励可领取')) {
+        this.addStep('没有盐罐奖励可领取');
+      } else {
+        throw error;
+      }
+    }
   }
 
   // ==================== 签到类任务 ====================
@@ -511,8 +521,19 @@ class TaskExecutor {
     const dayOfWeek = new Date().getDay();
     if ([0, 1, 3, 4].includes(dayOfWeek)) {
       this.addStep('选择英雄进入梦境');
-      const battleTeam = { 0: 107 };
-      await this.send('dungeon_selecthero', { battleTeam });
+      // 配置完整的阵容，避免上阵武将数量错误
+      const battleTeam = {
+        0: 107,  // 主武将
+        1: 108,  // 副将1
+        2: 109,  // 副将2
+        3: 110,  // 副将3
+        4: 111   // 副将4
+      };
+      try {
+        await this.send('dungeon_selecthero', { battleTeam });
+      } catch (error) {
+        this.addStep(`进入梦境失败: ${error.message}`);
+      }
     } else {
       this.addStep('当前未在梦境开放时间');
     }
