@@ -25,9 +25,9 @@ class TaskExecutor {
   }
 
   /**
-   * 发送消息并等待响应
+   * 发送消息并等待响应（带重试机制）
    */
-  async send(cmd, params = {}, timeout = 5000) {
+  async send(cmd, params = {}, timeout = 10000, maxRetries = 3) {
     // 为战斗相关命令自动注入 battleVersion
     const battleCommands = [
       'fight_startareaarena',
@@ -43,7 +43,24 @@ class TaskExecutor {
       logger.debug(`注入 battleVersion: ${this.battleVersion} [${cmd}]`);
     }
     
-    return await this.wsClient.sendWithPromise(cmd, params, timeout);
+    let retries = 0;
+    while (retries < maxRetries) {
+      try {
+        return await this.wsClient.sendWithPromise(cmd, params, timeout);
+      } catch (error) {
+        retries++;
+        if (retries >= maxRetries) {
+          throw error;
+        }
+        // 遇到脚本运行过快或服务器错误时，增加延迟后重试
+        if (error.message.includes('脚本运行过快') || error.message.includes('服务器错误')) {
+          logger.warn(`发送命令失败，${retries}/${maxRetries} 重试: ${error.message}`);
+          await this.delay(2000 * retries);
+        } else {
+          throw error;
+        }
+      }
+    }
   }
 
   /**
@@ -1178,66 +1195,66 @@ class TaskExecutor {
       if (!isTaskCompleted(2)) {
         this.addStep('分享一次游戏');
         await this.send('system_mysharecallback', { isSkipShareCard: true, type: 2 });
-        await this.delay(500);
+        await this.delay(1500);
       }
       
       if (!isTaskCompleted(3)) {
         this.addStep('赠送好友金币');
         await this.send('friend_batch');
-        await this.delay(500);
+        await this.delay(1500);
       }
       
       if (!isTaskCompleted(4)) {
         this.addStep('免费招募');
         await this.send('hero_recruit', { recruitType: 3, recruitNumber: 1 });
-        await this.delay(500);
+        await this.delay(1500);
       }
       
       if (settings.payRecruit !== false) {
         this.addStep('付费招募');
         await this.send('hero_recruit', { recruitType: 1, recruitNumber: 1 });
-        await this.delay(500);
+        await this.delay(1500);
       }
       
       if (!isTaskCompleted(6) && isTodayAvailable(statisticsTime["buy:gold"])) {
         for (let i = 0; i < 3; i++) {
           this.addStep(`免费点金 ${i + 1}/3`);
           await this.send('system_buygold', { buyNum: 1 });
-          await this.delay(500);
+          await this.delay(1500);
         }
       }
       
       if (!isTaskCompleted(5) && settings.claimHangUp !== false) {
         this.addStep('领取挂机奖励');
         await this.send('system_claimhangupreward');
-        await this.delay(500);
+        await this.delay(1500);
         
         for (let i = 0; i < 4; i++) {
           this.addStep(`挂机加钟 ${i + 1}/4`);
           await this.send('system_mysharecallback', { isSkipShareCard: true, type: 2 });
-          await this.delay(500);
+          await this.delay(1500);
         }
       }
       
       if (!isTaskCompleted(7) && settings.openBox !== false) {
         this.addStep('开启木质宝箱');
         await this.send('item_openbox', { itemId: 2001, number: 10 });
-        await this.delay(500);
+        await this.delay(1500);
       }
       
       // 盐罐
       this.addStep('停止盐罐计时');
       await this.send('bottlehelper_stop');
-      await this.delay(500);
+      await this.delay(1500);
       
       this.addStep('开始盐罐计时');
       await this.send('bottlehelper_start');
-      await this.delay(500);
+      await this.delay(1500);
       
       if (!isTaskCompleted(14) && settings.claimBottle !== false) {
         this.addStep('领取盐罐奖励');
         await this.send('bottlehelper_claim');
-        await this.delay(500);
+        await this.delay(1500);
       }
       
       // 2. 竞技场
