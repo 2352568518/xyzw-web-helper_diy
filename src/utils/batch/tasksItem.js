@@ -842,13 +842,46 @@ export function createTasksItem(deps) {
         let remainingPoints = targetPoints;
 
         const woodenAvailable = boxInventory[2001] - 200;
+        const bronzeAvailable = Math.floor(boxInventory[2002] / 10) * 10;
+        const goldAvailable = Math.floor(boxInventory[2003] / 10) * 10;
+        const platinumAvailable = Math.floor(boxInventory[2004] / 10) * 10;
+
+        const bronzePoints = bronzeAvailable * 10;
+        const goldPoints = goldAvailable * 20;
+        const platinumPoints = platinumAvailable * 50;
+
+        const bronzeMinPoints = bronzeAvailable >= 10 ? 100 : 0;
+        const goldMinPoints = goldAvailable >= 10 ? 200 : 0;
+        const platinumMinPoints = platinumAvailable >= 10 ? 500 : 0;
+
         if (woodenAvailable >= 10) {
-          const woodenPoints = woodenAvailable * 1;
-          const pointsNeeded = Math.min(woodenPoints, remainingPoints);
-          let woodenToOpen = Math.min(pointsNeeded, woodenAvailable);
-          woodenToOpen = Math.floor(woodenToOpen / 10) * 10;
-          if (woodenToOpen === 0 && woodenAvailable >= 10 && pointsNeeded > 0) {
-            woodenToOpen = 10;
+          let woodenToOpen;
+          
+          if (woodenAvailable >= targetPoints) {
+            woodenToOpen = Math.floor(targetPoints / 10) * 10;
+            if (woodenToOpen === 0 && woodenAvailable >= 10) {
+              woodenToOpen = 10;
+            }
+          } else if (bronzePoints >= targetPoints - woodenAvailable && bronzeMinPoints > 0) {
+            let n = 1;
+            while (targetPoints - 100 * n > woodenAvailable && 100 * n < bronzePoints) {
+              n++;
+            }
+            woodenToOpen = targetPoints - 100 * n;
+            if (woodenToOpen < 0) {
+              woodenToOpen = 0;
+            }
+            woodenToOpen = Math.min(woodenToOpen, woodenAvailable);
+            woodenToOpen = Math.floor(woodenToOpen / 10) * 10;
+            if (woodenToOpen === 0 && woodenAvailable >= 10) {
+              woodenToOpen = 10;
+            }
+          } else {
+            woodenToOpen = Math.min(woodenAvailable, targetPoints);
+            woodenToOpen = Math.floor(woodenToOpen / 10) * 10;
+            if (woodenToOpen === 0 && woodenAvailable >= 10) {
+              woodenToOpen = 10;
+            }
           }
           
           if (woodenToOpen >= 10) {
@@ -862,85 +895,92 @@ export function createTasksItem(deps) {
           }
         }
 
-        if (remainingPoints > 0) {
-          const bronzeAvailable = Math.floor(boxInventory[2002] / 10) * 10;
-          const goldAvailable = Math.floor(boxInventory[2003] / 10) * 10;
-          const platinumAvailable = Math.floor(boxInventory[2004] / 10) * 10;
-          const woodenTotal = Math.floor(boxInventory[2001] / 10) * 10;
-
-          let bestResult = null;
-          let minWaste = Infinity;
-
-          for (let bronze = 0; bronze <= bronzeAvailable; bronze += 10) {
-            const bronzePoints = bronze * 10;
-            if (bronzePoints > remainingPoints) break;
-            
-            for (let gold = 0; gold <= goldAvailable; gold += 10) {
-              const goldPoints = gold * 20;
-              if (bronzePoints + goldPoints > remainingPoints) break;
-              
-              const afterBronzeGold = remainingPoints - bronzePoints - goldPoints;
-              
-              for (let platinum = 0; platinum <= platinumAvailable; platinum += 10) {
-                const platinumPoints = platinum * 50;
-                if (platinumPoints > afterBronzeGold) break;
-                
-                const afterPlatinum = afterBronzeGold - platinumPoints;
-                
-                let wooden = 0;
-                if (afterPlatinum > 0) {
-                  wooden = Math.ceil(afterPlatinum / 10) * 10;
-                  if (wooden > woodenTotal || wooden > 100) continue;
-                }
-                
-                const totalPoints = bronzePoints + goldPoints + platinumPoints + wooden;
-                const waste = totalPoints - targetPoints;
-                
-                if (waste >= 0 && waste < minWaste) {
-                  minWaste = waste;
-                  bestResult = { bronze, gold, platinum, wooden, totalPoints };
-                  if (waste === 0) break;
-                }
-              }
-              if (minWaste === 0) break;
+        if (remainingPoints > 0 && boxInventory[2002] >= 10) {
+          let bronzeToOpen;
+          
+          if (bronzePoints >= remainingPoints) {
+            bronzeToOpen = Math.ceil(remainingPoints / 10);
+            bronzeToOpen = Math.floor(bronzeToOpen / 10) * 10;
+            if (bronzeToOpen === 0 && bronzeAvailable >= 10) {
+              bronzeToOpen = 10;
             }
-            if (minWaste === 0) break;
+          } else if (goldPoints >= remainingPoints - bronzePoints && goldMinPoints > 0) {
+            bronzeToOpen = Math.ceil((remainingPoints - goldMinPoints) / 10);
+            bronzeToOpen = Math.min(bronzeToOpen, bronzeAvailable);
+            bronzeToOpen = Math.floor(bronzeToOpen / 10) * 10;
+            if (bronzeToOpen === 0 && bronzeAvailable >= 10) {
+              bronzeToOpen = 10;
+            }
+          } else {
+            bronzeToOpen = Math.min(bronzeAvailable, Math.ceil(remainingPoints / 10));
+            bronzeToOpen = Math.floor(bronzeToOpen / 10) * 10;
+            if (bronzeToOpen === 0 && bronzeAvailable >= 10) {
+              bronzeToOpen = 10;
+            }
           }
+          
+          if (bronzeToOpen >= 10) {
+            boxToOpen[2002] = bronzeToOpen;
+            remainingPoints -= bronzeToOpen * 10;
+            addLog({
+              time: new Date().toLocaleTimeString(),
+              message: `${token.name} 计划开 青铜宝箱: ${bronzeToOpen} 个 (积分: ${bronzeToOpen * 10})`,
+              type: "info",
+            });
+          }
+        }
 
-          if (bestResult) {
-            if (bestResult.bronze > 0) {
-              boxToOpen[2002] = bestResult.bronze;
-              addLog({
-                time: new Date().toLocaleTimeString(),
-                message: `${token.name} 计划开 青铜宝箱: ${bestResult.bronze} 个 (积分: ${bestResult.bronze * 10})`,
-                type: "info",
-              });
+        if (remainingPoints > 0 && boxInventory[2003] >= 10) {
+          let goldToOpen;
+          
+          if (goldPoints >= remainingPoints) {
+            goldToOpen = Math.ceil(remainingPoints / 20);
+            goldToOpen = Math.floor(goldToOpen / 10) * 10;
+            if (goldToOpen === 0 && goldAvailable >= 10) {
+              goldToOpen = 10;
             }
-            if (bestResult.gold > 0) {
-              boxToOpen[2003] = bestResult.gold;
-              addLog({
-                time: new Date().toLocaleTimeString(),
-                message: `${token.name} 计划开 黄金宝箱: ${bestResult.gold} 个 (积分: ${bestResult.gold * 20})`,
-                type: "info",
-              });
+          } else if (platinumPoints >= remainingPoints - goldPoints && platinumMinPoints > 0) {
+            goldToOpen = Math.ceil((remainingPoints - platinumMinPoints) / 20);
+            goldToOpen = Math.min(goldToOpen, goldAvailable);
+            goldToOpen = Math.floor(goldToOpen / 10) * 10;
+            if (goldToOpen === 0 && goldAvailable >= 10) {
+              goldToOpen = 10;
             }
-            if (bestResult.platinum > 0) {
-              boxToOpen[2004] = bestResult.platinum;
-              addLog({
-                time: new Date().toLocaleTimeString(),
-                message: `${token.name} 计划开 铂金宝箱: ${bestResult.platinum} 个 (积分: ${bestResult.platinum * 50})`,
-                type: "info",
-              });
+          } else {
+            goldToOpen = Math.min(goldAvailable, Math.ceil(remainingPoints / 20));
+            goldToOpen = Math.floor(goldToOpen / 10) * 10;
+            if (goldToOpen === 0 && goldAvailable >= 10) {
+              goldToOpen = 10;
             }
-            if (bestResult.wooden > 0) {
-              boxToOpen[2001] = (boxToOpen[2001] || 0) + bestResult.wooden;
-              addLog({
-                time: new Date().toLocaleTimeString(),
-                message: `${token.name} 计划开 木质宝箱: ${bestResult.wooden} 个 (积分: ${bestResult.wooden})`,
-                type: "info",
-              });
-            }
-            remainingPoints = 0;
+          }
+          
+          if (goldToOpen >= 10) {
+            boxToOpen[2003] = goldToOpen;
+            remainingPoints -= goldToOpen * 20;
+            addLog({
+              time: new Date().toLocaleTimeString(),
+              message: `${token.name} 计划开 黄金宝箱: ${goldToOpen} 个 (积分: ${goldToOpen * 20})`,
+              type: "info",
+            });
+          }
+        }
+
+        if (remainingPoints > 0 && boxInventory[2004] >= 10) {
+          let platinumToOpen = Math.ceil(remainingPoints / 50);
+          platinumToOpen = Math.min(platinumToOpen, platinumAvailable);
+          platinumToOpen = Math.floor(platinumToOpen / 10) * 10;
+          if (platinumToOpen === 0 && platinumAvailable >= 10) {
+            platinumToOpen = 10;
+          }
+          
+          if (platinumToOpen >= 10) {
+            boxToOpen[2004] = platinumToOpen;
+            remainingPoints -= platinumToOpen * 50;
+            addLog({
+              time: new Date().toLocaleTimeString(),
+              message: `${token.name} 计划开 铂金宝箱: ${platinumToOpen} 个 (积分: ${platinumToOpen * 50})`,
+              type: "info",
+            });
           }
         }
 
@@ -988,6 +1028,23 @@ export function createTasksItem(deps) {
             });
           }
         }
+
+        addLog({
+          time: new Date().toLocaleTimeString(),
+          message: `${token.name} 开始领取宝箱积分奖励`,
+          type: "info",
+        });
+        await tokenStore.sendMessageWithPromise(
+          tokenId,
+          "item_batchclaimboxpointreward",
+          {},
+          5000,
+        );
+        addLog({
+          time: new Date().toLocaleTimeString(),
+          message: `${token.name} 宝箱积分奖励领取成功`,
+          type: "success",
+        });
 
         await tokenStore.sendMessage(tokenId, "role_getroleinfo");
         tokenStatus.value[tokenId] = "completed";

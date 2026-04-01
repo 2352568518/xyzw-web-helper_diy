@@ -1653,6 +1653,27 @@ const deleteToken = (token) => {
   });
 };
 
+// 并发控制辅助函数
+const runWithConcurrency = async (tasks, concurrency = 10) => {
+  const results = [];
+  const executing = new Set();
+  
+  for (const task of tasks) {
+    const promise = task().then(result => {
+      executing.delete(promise);
+      return result;
+    });
+    executing.add(promise);
+    results.push(promise);
+    
+    if (executing.size >= concurrency) {
+      await Promise.race(executing);
+    }
+  }
+  
+  return Promise.all(results);
+};
+
 // 批量刷新所有URLToken
 const refreshAllTokens = async () => {
   if (!tokenStore.gameTokens.length) {
@@ -1685,6 +1706,7 @@ const refreshAllTokens = async () => {
       try {
         let successCount = 0;
         let failCount = 0;
+        let completedCount = 0;
 
         // 显示进度提示
         const loadingMessage = message.loading(
@@ -1694,26 +1716,22 @@ const refreshAllTokens = async () => {
           },
         );
 
-        for (let i = 0; i < tokensToRefresh.length; i++) {
-          const token = tokensToRefresh[i];
-
+        // 创建刷新任务
+        const refreshTasks = tokensToRefresh.map((token) => async () => {
           try {
-            // 更新进度显示
-            loadingMessage.content = `正在刷新Token (${i + 1}/${tokensToRefresh.length}): ${token.name}`;
-
-            // 调用单个刷新函数
             await refreshToken(token);
             successCount++;
           } catch (error) {
             console.error(`刷新Token "${token.name}" 失败:`, error);
             failCount++;
+          } finally {
+            completedCount++;
+            loadingMessage.content = `正在刷新Token (${completedCount}/${tokensToRefresh.length}): ${token.name}`;
           }
+        });
 
-          // 添加短暂延迟避免请求过于频繁
-          if (i < tokensToRefresh.length - 1) {
-            await new Promise((resolve) => setTimeout(resolve, 500));
-          }
-        }
+        // 并发执行，默认10个并发
+        await runWithConcurrency(refreshTasks, 10);
 
         // 关闭进度提示
         loadingMessage.destroy();
